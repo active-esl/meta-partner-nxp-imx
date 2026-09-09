@@ -14,7 +14,7 @@ For FRDM-IMX95 this means:
 
 - this layer owns the coherent NXP `lf-6.12.49-2.2.0` component set, the
   `imx95-frdm-evk` reference machine, Foundries OSTree/FIT boot integration,
-  WIC layout and UUU/mfgtools support;
+  kernel and mfgtool device trees, WIC layout and UUU/mfgtools support;
 - a product distro layer selects display, Waydroid and other image features;
 - a customer BSP layer may inherit the generic `mx95-nxp-bsp` support and add
   only the custom board delta.
