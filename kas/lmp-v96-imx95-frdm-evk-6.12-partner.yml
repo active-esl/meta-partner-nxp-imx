@@ -1,0 +1,135 @@
+# LmP v96 partner-layer integration gate for FRDM-IMX95.
+#
+# Core layer revisions come directly from the Foundries lmp-manifest `96` tag.
+# NXP vendor layers are explicit, pinned Factory additions because v96 removed
+# them from the core BSP manifest. The local partner checkout is the component
+# under test and must be pinned by the consuming Factory before production use.
+
+header:
+  version: 14
+
+distro: lmp
+target: lmp-factory-image
+machine: imx95-frdm-evk
+
+repos:
+  bitbake:
+    url: https://github.com/lmp-mirrors/bitbake
+    commit: 1c9ec1ffde75809de34c10d3ec2b40d84d258cb4
+    path: build/layers/bitbake
+    layers:
+      .: disabled
+
+  openembedded-core:
+    url: https://github.com/lmp-mirrors/openembedded-core
+    commit: 7af6b75221d5703ba5bf43c7cd9f1e7a2e0ed20b
+    path: build/layers/openembedded-core
+    layers:
+      meta:
+
+  meta-lmp:
+    url: https://github.com/foundriesio/meta-lmp
+    commit: 455bf51bd908cb008dd048031247478ffc62a43a
+    path: build/layers/meta-lmp
+    layers:
+      meta-lmp-base:
+      meta-lmp-bsp:
+
+  meta-clang:
+    url: https://github.com/lmp-mirrors/meta-clang
+    commit: eaa08939eaec9f620b14742ff3ac568553683034
+    path: build/layers/meta-clang
+
+  meta-openembedded:
+    url: https://github.com/lmp-mirrors/meta-openembedded
+    commit: f1f248262d662315159ee96c604f97415d1dbe6a
+    path: build/layers/meta-openembedded
+    layers:
+      meta-oe:
+      meta-networking:
+      meta-filesystems:
+      meta-perl:
+      meta-python:
+      meta-multimedia:
+
+  meta-security:
+    url: https://github.com/lmp-mirrors/meta-security
+    commit: bc865c5276c2ab4031229916e8d7c20148dfbac3
+    path: build/layers/meta-security
+    layers:
+      .:
+      meta-tpm:
+      meta-parsec:
+      meta-integrity:
+
+  meta-updater:
+    url: https://github.com/lmp-mirrors/meta-updater
+    commit: b275153c9c8ea09e27d41db9f2faba3ebf92d2c2
+    path: build/layers/meta-updater
+
+  meta-virtualization:
+    url: https://github.com/lmp-mirrors/meta-virtualization
+    commit: 02f72c96bf9acd0bd3ae0463f482bce8feabe749
+    path: build/layers/meta-virtualization
+    layers:
+      .:
+
+  meta-arm:
+    url: https://github.com/lmp-mirrors/meta-arm
+    commit: 8e0f8af90fefb03f08cd2228cde7a89902a6b37c
+    path: build/layers/meta-arm
+    layers:
+      meta-arm:
+      meta-arm-toolchain:
+      meta-arm-bsp:
+
+  # Factory additions for the NXP BSP. These are not part of v96 core.
+  meta-freescale:
+    url: https://github.com/lmp-mirrors/meta-freescale
+    commit: 281202125dee44b45ddd56822e43af9c007e4d3d
+    path: build/layers/meta-freescale
+
+  meta-freescale-3rdparty:
+    url: https://github.com/lmp-mirrors/meta-freescale-3rdparty
+    commit: 70c83e96c7f75e73245cb77f1b0cada9ed4bbc6d
+    path: build/layers/meta-freescale-3rdparty
+
+  meta-imx:
+    url: https://github.com/nxp-imx/meta-imx.git
+    commit: e83d4402acde050d2b2761995761c81c797b5b03
+    path: build/layers/meta-imx
+    layers:
+      meta-imx-bsp:
+
+  meta-partner-nxp-imx:
+    path: /data_drive/esl/.codex-meta-partner-nxp-imx95
+
+local_conf_header:
+  imx95-v96-partner: |
+    ACCEPT_FSL_EULA = "1"
+    LOCAL_DEVELOPMENT_BUILD = "1"
+    DEV_MODE = "1"
+    NXP_WIFI_SECURE_FIRMWARE = "0"
+
+    UBOOT_SIGN_ENABLE = "0"
+    UBOOT_SPL_SIGN_ENABLE = "0"
+    TF_A_SIGN_ENABLE = "0"
+    OPTEE_TA_SIGN_ENABLE = "0"
+    UEFI_SIGN_ENABLE = "0"
+    MODSIGN = "0"
+    MODSIGN_ENABLE = "0"
+    DISTRO_FEATURES:remove = "modsign"
+    SIGN_ENABLE = "0"
+
+    SIGNING_UBOOT_SIGN_KEY = "${TOPDIR}/bitbake.lock"
+    SIGNING_UBOOT_SIGN_CRT = "${TOPDIR}/bitbake.lock"
+    SIGNING_UBOOT_SPL_SIGN_KEY = "${TOPDIR}/bitbake.lock"
+    SIGNING_UBOOT_SPL_SIGN_CRT = "${TOPDIR}/bitbake.lock"
+    SIGNING_UEFI_SIGN_KEY = "${TOPDIR}/bitbake.lock"
+    SIGNING_UEFI_SIGN_CRT = "${TOPDIR}/bitbake.lock"
+    SIGNING_MODSIGN_PRIVKEY = "${TOPDIR}/bitbake.lock"
+    SIGNING_MODSIGN_X509 = "${TOPDIR}/bitbake.lock"
+    TF_A_SIGN_KEY_PATH = "${TOPDIR}/bitbake.lock"
+
+    INHERIT:remove = "sign_rpm create-spdx spdx"
+    CREATE_SPDX:forcevariable = "0"

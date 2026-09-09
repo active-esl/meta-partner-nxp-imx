@@ -1,0 +1,13 @@
+# Compatibility harness for extracting the already-proven i.MX95 work from the
+# Dynamic Devices BSP into the Foundries NXP partner layer. The included stack
+# remains pinned to the current Factory baseline; a separate v96/v97 manifest
+# migration proves the post-v96 partner-layer integration.
+
+header:
+  version: 14
+  includes:
+    - /data_drive/esl/.codex-bsp-imx95-nxp-6.12/kas/lmp-imx95-frdm-evk-6.12-smoke.yml
+
+repos:
+  meta-dynamicdevices-bsp:
+    path: /data_drive/esl/.codex-meta-partner-nxp-imx95

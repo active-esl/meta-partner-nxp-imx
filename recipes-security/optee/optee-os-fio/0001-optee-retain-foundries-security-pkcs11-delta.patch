@@ -1,0 +1,432 @@
+From: Dynamic Devices BSP Maintainers <support@dynamicdevices.co.uk>
+Subject: [PATCH] optee: retain Foundries security and PKCS#11 delta
+
+Forward-port the six Foundries-specific changes from the 4.4.0+fio-imx
+branch onto NXP's lf-6.12.49_2.2.0 OP-TEE baseline. The two additional
+Foundries RPMB fixes are already present upstream in this NXP baseline.
+Extend the HUK weak-stub exclusion to CFG_MX95, whose strong implementation
+is supplied by the ELE driver, so the original fail-closed intent covers the
+new SoC family.
+
+Original Foundries commits:
+- 7ee0f456d PKCS#11 TA UUID separation from SKS
+- caff966a2 PKCS#11 token description device ID
+- 0599f2a12 remove the i.MX HUK weak stub
+- 94aabbc53 PKCS#11 import of pre-allocated secure-element keys
+- 80e3ff95f SE050 ECC/RSA key import
+- a475b6048 prohibit derived SCP03 keys until RPMB is ready
+
+Upstream-Status: Inappropriate [Foundries-specific integration]
+
+diff --git a/core/drivers/crypto/se050/adaptors/include/se050_utils.h b/core/drivers/crypto/se050/adaptors/include/se050_utils.h
+index 7a0a427ff981dc71c31e1bb26a42bbdeae5d890b..3c5a8222006ba2fc1610c1589da18bf70aa5f5e5 100644
+--- a/core/drivers/crypto/se050/adaptors/include/se050_utils.h
++++ b/core/drivers/crypto/se050/adaptors/include/se050_utils.h
+@@ -7,6 +7,7 @@
+ #ifndef SE050_UTILS_H_
+ #define SE050_UTILS_H_
+ 
++#include <crypto/crypto.h>
+ #include <se050.h>
+ #include <tee_api_types.h>
+ 
+@@ -33,6 +34,7 @@ struct s050_scp_rotate_cmd {
+ 	((uint64_t)(((uint64_t)SE050_KEY_WATERMARK) << 32) + (x))
+ 
+ sss_status_t se050_get_oid(uint32_t *val);
++sss_status_t se050_oid_from_key(struct bignum **p, uint32_t *oid);
+ 
+ struct rsa_keypair;
+ struct ecc_keypair;
+diff --git a/core/drivers/crypto/se050/adaptors/utils/scp_config.c b/core/drivers/crypto/se050/adaptors/utils/scp_config.c
+index fcdcf1a3ff0de6ecd74c3cac6e4bf74b477a4f87..703c57230a24e82c5af2efc52e29d5e1974d86d1 100644
+--- a/core/drivers/crypto/se050/adaptors/utils/scp_config.c
++++ b/core/drivers/crypto/se050/adaptors/utils/scp_config.c
+@@ -22,6 +22,7 @@
+ #include <stdio.h>
+ #include <string.h>
+ #include <tee_api_defines_extensions.h>
++#include <tee/tee_fs.h>
+ #include <tee/tee_cryp_utl.h>
+ #include <utee_defines.h>
+ 
+@@ -413,6 +414,14 @@ static const char * __maybe_unused get_scp03_ksrc_name(enum se050_scp03_ksrc k)
+ 	return NULL;
+ }
+ 
++#ifndef CFG_RPMB_FS
++static bool plat_rpmb_key_is_ready(void)
++{
++	/* without RPMB lets be cautious */
++	return false;
++}
++#endif
++
+ sss_status_t se050_scp03_subkey_derive(struct se050_scp_key *keys)
+ {
+ 	struct {
+@@ -426,6 +435,10 @@ sss_status_t se050_scp03_subkey_derive(struct se050_scp_key *keys)
+ 	uint8_t msg[SE050_SCP03_KEY_SZ + 3] = { 0 };
+ 	size_t i = 0;
+ 
++	/* hack: Foundries.io: our platforms are secured when RPMB is ready */
++	if (!plat_rpmb_key_is_ready())
++		return kStatus_SSS_Fail;
++
+ 	if (IS_ENABLED(CFG_CORE_SCP03_ONLY)) {
+ 		memset(msg, 0x55, sizeof(msg));
+ 	} else {
+diff --git a/core/drivers/crypto/se050/adaptors/utils/utils.c b/core/drivers/crypto/se050/adaptors/utils/utils.c
+index 88fcad994b4c02c4af2f5a78ecf47d66a6e30c08..14475ac0bc979f35d6a537f36f6e94c70b18dcfe 100644
+--- a/core/drivers/crypto/se050/adaptors/utils/utils.c
++++ b/core/drivers/crypto/se050/adaptors/utils/utils.c
+@@ -113,6 +113,35 @@ sss_status_t se050_get_oid(uint32_t *val)
+ 	return generate_oid(val);
+ }
+ 
++sss_status_t se050_oid_from_key(struct bignum **p, uint32_t *oid)
++{
++	char label[12] = { '\0' };
++
++	if (!*p || !oid) {
++		*oid = 0;
++		return kStatus_SSS_Success;
++	}
++
++	/* label is 11 bytes guaranteed by PKCS#11 TA */
++	memcpy(label, *p, 11);
++
++	if (memcmp(label, "SE_", 3)) {
++		/* not an SE_ request */
++		*oid = 0;
++		return kStatus_SSS_Success;
++	}
++
++	free(*p);
++
++	*oid = strtoul(label + 3, NULL, 16);
++	*p = crypto_bignum_allocate(4096);
++
++	if (!se050_key_exists(*oid, &se050_session->s_ctx))
++		return kStatus_SSS_Fail;
++
++	return kStatus_SSS_Success;
++}
++
+ static uint32_t se050_key(uint64_t key)
+ {
+ 	uint32_t oid = (uint32_t)key;
+diff --git a/core/drivers/crypto/se050/core/ecc.c b/core/drivers/crypto/se050/core/ecc.c
+index c55ab8b2a7555687333e2aa1317289337ed66fe7..c4be7788e0ac39c795f696c4f7fbebef81d11159 100644
+--- a/core/drivers/crypto/se050/core/ecc.c
++++ b/core/drivers/crypto/se050/core/ecc.c
+@@ -652,6 +652,18 @@ static TEE_Result gen_keypair(struct ecc_keypair *key, size_t key_size)
+ 	if (st != kStatus_SSS_Success)
+ 		return TEE_ERROR_BAD_PARAMETERS;
+ 
++	st = se050_oid_from_key(&key->d, &oid);
++	if (st != kStatus_SSS_Success)
++		return TEE_ERROR_BAD_PARAMETERS;
++
++	if (oid) {
++		st = sss_se05x_key_object_get_handle(&k_object, oid);
++		if (st != kStatus_SSS_Success)
++			return TEE_ERROR_BAD_PARAMETERS;
++
++		goto get_key;
++	}
++
+ 	st = se050_get_oid(&oid);
+ 	if (st != kStatus_SSS_Success)
+ 		return TEE_ERROR_GENERIC;
+@@ -669,6 +681,7 @@ static TEE_Result gen_keypair(struct ecc_keypair *key, size_t key_size)
+ 	if (st != kStatus_SSS_Success)
+ 		return TEE_ERROR_BAD_PARAMETERS;
+ 
++get_key:
+ 	bytes = sizeof(kf);
+ 	st = se050_key_store_get_ecc_key_bin(se050_kstore, &k_object, kf,
+ 					     &bytes);
+diff --git a/core/drivers/crypto/se050/core/rsa.c b/core/drivers/crypto/se050/core/rsa.c
+index 6f89a8f3b12c4a3dda25dd572823be64fef65aa2..6d78c08d923f9c5fc8874d226ee0dec344ad331b 100644
+--- a/core/drivers/crypto/se050/core/rsa.c
++++ b/core/drivers/crypto/se050/core/rsa.c
+@@ -622,6 +622,18 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t kb)
+ 	if (st != kStatus_SSS_Success)
+ 		return TEE_ERROR_BAD_PARAMETERS;
+ 
++	st = se050_oid_from_key(&key->d, &oid);
++	if (st != kStatus_SSS_Success)
++		return TEE_ERROR_BAD_PARAMETERS;
++
++	if (oid) {
++		st = sss_se05x_key_object_get_handle(&k_object, oid);
++		if (st != kStatus_SSS_Success)
++			return TEE_ERROR_BAD_PARAMETERS;
++
++		goto get_key;
++	}
++
+ 	st = se050_get_oid(&oid);
+ 	if (st != kStatus_SSS_Success)
+ 		return TEE_ERROR_GENERIC;
+@@ -638,6 +650,7 @@ static TEE_Result do_gen_keypair(struct rsa_keypair *key, size_t kb)
+ 	if (st != kStatus_SSS_Success)
+ 		goto error;
+ 
++get_key:
+ 	st = sss_se05x_key_store_get_key(se050_kstore, &k_object, k, &k_len,
+ 					 &kb);
+ 	if (st != kStatus_SSS_Success)
+diff --git a/core/kernel/otp_stubs.c b/core/kernel/otp_stubs.c
+index 0891d90bd59f4a1a9824c51a4bf683cd2dec89d7..17b936be674c808823cda4df8486ebc68fd8d910 100644
+--- a/core/kernel/otp_stubs.c
++++ b/core/kernel/otp_stubs.c
+@@ -10,6 +10,15 @@
+ #include <signed_hdr.h>
+ #include <ta_pub_key.h>
+ 
++/*
++ * Avoid using the HUK stub implementation for the platforms below as this will
++ * lead to using a non secure key.
++ */
++#if defined(CFG_MX6UL) || (!defined(CFG_MX6) && \
++			   !defined(CFG_MX7) && \
++			   !defined(CFG_MX7ULP) && \
++			   !defined(CFG_MX8M) && \
++			   !defined(CFG_MX95))
+ /*
+  * Override these in your platform code to really fetch device-unique
+  * bits from e-fuses or whatever.
+@@ -24,6 +32,7 @@ __weak TEE_Result tee_otp_get_hw_unique_key(struct tee_hw_unique_key *hwkey)
+ 	return TEE_SUCCESS;
+ }
+ #endif
++#endif
+ 
+ __weak int tee_otp_get_die_id(uint8_t *buffer, size_t len)
+ {
+diff --git a/core/tee/tee_svc_cryp.c b/core/tee/tee_svc_cryp.c
+index a5773a99f2438e3ae78cc43bc6cad76a7d87c7c2..0d69adb3541025642d7e9e467c334a557c32c6eb 100644
+--- a/core/tee/tee_svc_cryp.c
++++ b/core/tee/tee_svc_cryp.c
+@@ -147,7 +147,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_rsa_keypair_attrs[] = {
+ 
+ 	{
+ 	.attr_id = TEE_ATTR_RSA_PRIVATE_EXPONENT,
+-	.flags = TEE_TYPE_ATTR_REQUIRED,
++	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_OPT,
+ 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+ 	RAW_DATA(struct rsa_keypair, d)
+ 	},
+@@ -368,7 +368,7 @@ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_pub_key_attrs[] = {
+ static const struct tee_cryp_obj_type_attrs tee_cryp_obj_ecc_keypair_attrs[] = {
+ 	{
+ 	.attr_id = TEE_ATTR_ECC_PRIVATE_VALUE,
+-	.flags = TEE_TYPE_ATTR_REQUIRED,
++	.flags = TEE_TYPE_ATTR_REQUIRED | TEE_TYPE_ATTR_GEN_KEY_OPT,
+ 	.ops_index = ATTR_OPS_INDEX_BIGNUM,
+ 	RAW_DATA(struct ecc_keypair, d)
+ 	},
+@@ -2134,6 +2134,18 @@ static TEE_Result tee_svc_obj_generate_key_rsa(
+ 					     param_count);
+ 	if (res != TEE_SUCCESS)
+ 		return res;
++
++	if (get_attribute(o, type_props, TEE_ATTR_RSA_PRIVATE_EXPONENT)) {
++		size_t len = crypto_bignum_num_bytes(key->d);
++		uint8_t label[32];
++
++		if (!len || len > sizeof(label))
++			return TEE_ERROR_ITEM_NOT_FOUND;
++
++		crypto_bignum_bn2bin(key->d, label);
++		memcpy(key->d, label, len);
++	}
++
+ 	if (get_attribute(o, type_props, TEE_ATTR_RSA_PUBLIC_EXPONENT)) {
+ 		res = check_pub_rsa_key(key->e);
+ 		if (res)
+@@ -2223,6 +2235,17 @@ static TEE_Result tee_svc_obj_generate_key_ecc(
+ 
+ 	tee_ecc_key = (struct ecc_keypair *)o->attr;
+ 
++	if (get_attribute(o, type_props, TEE_ATTR_ECC_PRIVATE_VALUE)) {
++		size_t len = crypto_bignum_num_bytes(tee_ecc_key->d);
++		uint8_t label[32];
++
++		if (!len || len > sizeof(label))
++			return TEE_ERROR_ITEM_NOT_FOUND;
++
++		crypto_bignum_bn2bin(tee_ecc_key->d, label);
++		memcpy(tee_ecc_key->d, label, len);
++	}
++
+ 	res = crypto_acipher_gen_ecc_key(tee_ecc_key, key_size);
+ 	if (res != TEE_SUCCESS)
+ 		return res;
+diff --git a/ta/pkcs11/Android.mk b/ta/pkcs11/Android.mk
+index 19c606134a5947a926be97b9d68832c089b7900c..a8032b26584d84221bc274a1f391bee133d933ee 100644
+--- a/ta/pkcs11/Android.mk
++++ b/ta/pkcs11/Android.mk
+@@ -1,3 +1,3 @@
+ LOCAL_PATH := $(call my-dir)
+-local_module := fd02c9da-306c-48c7-a49c-bbd827ae86ee.ta
++local_module := 7f10a757-4139-4eae-90c9-f2b2eb118139.ta
+ include $(BUILD_OPTEE_MK)
+diff --git a/ta/pkcs11/Makefile b/ta/pkcs11/Makefile
+index fa405f76b3be41746ffceb1517b47ed187ab4c6b..eb500c5bf37339d7075b5237a75feba8faf0e3ce 100644
+--- a/ta/pkcs11/Makefile
++++ b/ta/pkcs11/Makefile
+@@ -1,5 +1,5 @@
+ # The UUID for the Trusted Application
+-BINARY=fd02c9da-306c-48c7-a49c-bbd827ae86ee
++BINARY=7f10a757-4139-4eae-90c9-f2b2eb118139
+ 
+ -include $(TA_DEV_KIT_DIR)/mk/ta_dev_kit.mk
+ 
+diff --git a/ta/pkcs11/include/pkcs11_ta.h b/ta/pkcs11/include/pkcs11_ta.h
+index 1d7707a740908302a4b04891750bc58b690514e1..e8763d53d45b578e3596b55f809ff3cec603a092 100644
+--- a/ta/pkcs11/include/pkcs11_ta.h
++++ b/ta/pkcs11/include/pkcs11_ta.h
+@@ -9,8 +9,8 @@
+ #include <stdbool.h>
+ #include <stdint.h>
+ 
+-#define PKCS11_TA_UUID { 0xfd02c9da, 0x306c, 0x48c7, \
+-			 { 0xa4, 0x9c, 0xbb, 0xd8, 0x27, 0xae, 0x86, 0xee } }
++#define PKCS11_TA_UUID { 0x7f10a757, 0x4139, 0x4eae, \
++			 { 0x90, 0xc9, 0xf2, 0xb2, 0xeb, 0x11, 0x81, 0x39} }
+ 
+ /* PKCS11 trusted application version information */
+ #define PKCS11_TA_VERSION_MAJOR			1
+diff --git a/ta/pkcs11/src/pkcs11_token.c b/ta/pkcs11/src/pkcs11_token.c
+index 23ecbc7c8535a0531de31a534059aa02ee91284a..e8666e99d7ecd84e5c916faf10e5b7573f451ca6 100644
+--- a/ta/pkcs11/src/pkcs11_token.c
++++ b/ta/pkcs11/src/pkcs11_token.c
+@@ -293,8 +293,7 @@ static void set_token_description(struct pkcs11_slot_info *info)
+ 	res = TEE_GetPropertyAsUUID(TEE_PROPSET_TEE_IMPLEMENTATION,
+ 				    "gpd.tee.deviceID", &dev_id);
+ 	if (res == TEE_SUCCESS) {
+-		n = snprintk(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
+-			     " - TEE UUID %pUl", (void *)&dev_id);
++		n = snprintk(desc, sizeof(desc), "%pUl", (void *)&dev_id);
+ 	} else {
+ 		n = snprintf(desc, sizeof(desc), PKCS11_SLOT_DESCRIPTION
+ 			     " - No TEE UUID");
+diff --git a/ta/pkcs11/src/processing_ec.c b/ta/pkcs11/src/processing_ec.c
+index adf9b5e096dbbef5725b9874e782157e097b70d8..e7e3f302883330566be38bda85081318261356ce 100644
+--- a/ta/pkcs11/src/processing_ec.c
++++ b/ta/pkcs11/src/processing_ec.c
+@@ -5,6 +5,7 @@
+ 
+ #include <assert.h>
+ #include <pkcs11_ta.h>
++#include <string.h>
+ #include <tee_api_defines.h>
+ #include <tee_internal_api.h>
+ #include <tee_internal_api_extensions.h>
+@@ -592,12 +593,15 @@ enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
+ {
+ 	enum pkcs11_rc rc = PKCS11_CKR_GENERAL_ERROR;
+ 	void *a_ptr = NULL;
++	void *b_ptr = NULL;
+ 	uint32_t a_size = 0;
++	uint32_t b_size = 0;
+ 	uint32_t tee_size = 0;
+ 	uint32_t tee_curve = 0;
+ 	TEE_ObjectHandle tee_obj = TEE_HANDLE_NULL;
+-	TEE_Attribute tee_key_attr[1] = { };
++	TEE_Attribute tee_key_attr[2] = { };
+ 	TEE_Result res = TEE_ERROR_GENERIC;
++	uint32_t tee_count = 0;
+ 
+ 	if (!proc_params || !*pub_head || !*priv_head)
+ 		return PKCS11_CKR_TEMPLATE_INCONSISTENT;
+@@ -625,6 +629,23 @@ enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
+ 
+ 	TEE_InitValueAttribute(tee_key_attr, TEE_ATTR_ECC_CURVE, tee_curve, 0);
+ 
++	tee_count++;
++
++	b_size = 0;
++	rc = get_attribute_ptr(*pub_head, PKCS11_CKA_LABEL, &b_ptr, &b_size);
++	if (!rc && b_size >=3 && !memcmp(b_ptr, "SE_", 3)) {
++		if (b_size != 11) {
++			EMSG("SE_ identifier size invalid");
++			rc = PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
++			goto out;
++		}
++
++		TEE_InitRefAttribute(&tee_key_attr[tee_count],
++				     TEE_ATTR_ECC_PRIVATE_VALUE,
++				     b_ptr, b_size);
++		tee_count++;
++	}
++
+ 	/* Create an ECDSA TEE key: will match PKCS11 ECDSA and ECDH */
+ 	res = TEE_AllocateTransientObject(TEE_TYPE_ECDSA_KEYPAIR, tee_size,
+ 					  &tee_obj);
+@@ -639,7 +660,7 @@ enum pkcs11_rc generate_ec_keys(struct pkcs11_attribute_head *proc_params,
+ 		goto out;
+ 	}
+ 
+-	res = TEE_GenerateKey(tee_obj, tee_size, tee_key_attr, 1);
++	res = TEE_GenerateKey(tee_obj, tee_size, tee_key_attr, tee_count);
+ 	if (res) {
+ 		rc = tee2pkcs_error(res);
+ 		goto out;
+diff --git a/ta/pkcs11/src/processing_rsa.c b/ta/pkcs11/src/processing_rsa.c
+index 4b68cfbc6b451a3dc031ff299a99194618959b66..8a603bd5f9effb401511b9e66645485d582e1576 100644
+--- a/ta/pkcs11/src/processing_rsa.c
++++ b/ta/pkcs11/src/processing_rsa.c
+@@ -8,6 +8,7 @@
+ #include <tee_api_defines.h>
+ #include <tee_internal_api.h>
+ #include <tee_internal_api_extensions.h>
++#include <string.h>
+ 
+ #include "attributes.h"
+ #include "object.h"
+@@ -725,7 +726,7 @@ enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
+ 	TEE_ObjectHandle tee_obj = TEE_HANDLE_NULL;
+ 	TEE_Result res = TEE_ERROR_GENERIC;
+ 	uint32_t modulus_bits = 0;
+-	TEE_Attribute tee_attrs[1] = { };
++	TEE_Attribute tee_attrs[2] = { };
+ 	uint32_t tee_count = 0;
+ 
+ 	if (!proc_params || !*pub_head || !*priv_head)
+@@ -750,6 +751,22 @@ enum pkcs11_rc generate_rsa_keys(struct pkcs11_attribute_head *proc_params,
+ 		tee_count++;
+ 	}
+ 
++	/* pass the label to the private exponent */
++	a_size = 0;
++	rc = get_attribute_ptr(*pub_head, PKCS11_CKA_LABEL, &a_ptr, &a_size);
++	if (!rc && a_size >= 3 && !memcmp(a_ptr, "SE_", 3)) {
++		if (a_size != 11) {
++			EMSG("SE_ identifier size invalid");
++			rc = PKCS11_CKR_ATTRIBUTE_TYPE_INVALID;
++			goto out;
++		}
++
++		TEE_InitRefAttribute(&tee_attrs[tee_count],
++				     TEE_ATTR_RSA_PRIVATE_EXPONENT,
++				     a_ptr, a_size);
++		tee_count++;
++	}
++
+ 	if (remove_empty_attribute(priv_head, PKCS11_CKA_MODULUS) ||
+ 	    remove_empty_attribute(priv_head, PKCS11_CKA_PUBLIC_EXPONENT) ||
+ 	    remove_empty_attribute(priv_head, PKCS11_CKA_PRIVATE_EXPONENT) ||
+diff --git a/ta/pkcs11/user_ta.mk b/ta/pkcs11/user_ta.mk
+index dda50cfe7fd6a0f9570db193c0567be66edcb3e5..476072af1514f6abefa5056921357eff35aa4fdc 100644
+--- a/ta/pkcs11/user_ta.mk
++++ b/ta/pkcs11/user_ta.mk
+@@ -1,4 +1,4 @@
+-user-ta-uuid := fd02c9da-306c-48c7-a49c-bbd827ae86ee
++user-ta-uuid := 7f10a757-4139-4eae-90c9-f2b2eb118139
+ 
+ all: pkcs11-ta-verify-helpers
+ 

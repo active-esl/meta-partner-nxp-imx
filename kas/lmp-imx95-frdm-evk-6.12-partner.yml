@@ -1,0 +1,75 @@
+# Standalone compatibility gate for the FRDM-IMX95 support carried by the
+# Foundries NXP partner layer. Product policy (including Screen and Waydroid)
+# is intentionally excluded: this file proves that the board support parses
+# without depending on a Dynamic Devices product or BSP layer.
+
+header:
+  version: 14
+  includes:
+    - /data_drive/esl/meta-dynamicdevices-product-features/kas/base.yml
+    - /data_drive/esl/meta-dynamicdevices-product-features/kas/bsp.yml
+
+distro: lmp
+target: lmp-factory-image
+machine: imx95-frdm-evk
+
+repos:
+  meta-partner-nxp-imx:
+    path: /data_drive/esl/.codex-meta-partner-nxp-imx95
+
+  meta-imx:
+    url: https://github.com/nxp-imx/meta-imx.git
+    branch: scarthgap-6.6.52-2.2.1
+    path: build/layers/meta-imx
+    layers:
+      meta-imx-bsp:
+
+  # Keep this first extraction gate on the source work's already-proven LmP
+  # baseline. A separate manifest gate validates the post-v96 layer layout.
+  meta-lmp:
+    url: https://github.com/foundriesio/meta-lmp
+    commit: 4dffdff79b4df49c683c9a7faea406595cb7e9ca
+    path: build/layers/meta-lmp
+    layers:
+      meta-lmp-base:
+      meta-lmp-bsp:
+
+  meta-freescale:
+    url: https://github.com/lmp-mirrors/meta-freescale
+    commit: 281202125dee44b45ddd56822e43af9c007e4d3d
+    path: build/layers/meta-freescale
+
+  meta-freescale-3rdparty:
+    url: https://github.com/lmp-mirrors/meta-freescale-3rdparty
+    commit: 70c83e96c7f75e73245cb77f1b0cada9ed4bbc6d
+    path: build/layers/meta-freescale-3rdparty
+
+local_conf_header:
+  imx95-partner-smoke: |
+    ACCEPT_FSL_EULA = "1"
+    LOCAL_DEVELOPMENT_BUILD = "1"
+    DEV_MODE = "1"
+    NXP_WIFI_SECURE_FIRMWARE = "0"
+
+    UBOOT_SIGN_ENABLE = "0"
+    UBOOT_SPL_SIGN_ENABLE = "0"
+    TF_A_SIGN_ENABLE = "0"
+    OPTEE_TA_SIGN_ENABLE = "0"
+    UEFI_SIGN_ENABLE = "0"
+    MODSIGN = "0"
+    MODSIGN_ENABLE = "0"
+    DISTRO_FEATURES:remove = "modsign"
+    SIGN_ENABLE = "0"
+
+    SIGNING_UBOOT_SIGN_KEY = "${TOPDIR}/bitbake.lock"
+    SIGNING_UBOOT_SIGN_CRT = "${TOPDIR}/bitbake.lock"
+    SIGNING_UBOOT_SPL_SIGN_KEY = "${TOPDIR}/bitbake.lock"
+    SIGNING_UBOOT_SPL_SIGN_CRT = "${TOPDIR}/bitbake.lock"
+    SIGNING_UEFI_SIGN_KEY = "${TOPDIR}/bitbake.lock"
+    SIGNING_UEFI_SIGN_CRT = "${TOPDIR}/bitbake.lock"
+    SIGNING_MODSIGN_PRIVKEY = "${TOPDIR}/bitbake.lock"
+    SIGNING_MODSIGN_X509 = "${TOPDIR}/bitbake.lock"
+    TF_A_SIGN_KEY_PATH = "${TOPDIR}/bitbake.lock"
+
+    INHERIT:remove = "sign_rpm create-spdx spdx"
+    CREATE_SPDX:forcevariable = "0"

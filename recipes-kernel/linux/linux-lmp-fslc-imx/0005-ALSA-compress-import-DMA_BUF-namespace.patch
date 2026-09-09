@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dynamic Devices BSP Team <support@dynamicdevices.co.uk>
+Date: Wed, 9 Sep 2026 14:20:00 +0100
+Subject: [PATCH] ALSA: compress: import DMA_BUF namespace
+
+The NXP compressed-offload extensions make snd-compress reference
+dma_buf_get(), dma_buf_put(), and dma_buf_fd().  Since those symbols are
+exported in the DMA_BUF namespace, a modular SND_COMPRESS_OFFLOAD build is
+rejected by modpost unless the module explicitly imports that namespace.
+
+Signed-off-by: Dynamic Devices BSP Team <support@dynamicdevices.co.uk>
+---
+ sound/core/compress_offload.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sound/core/compress_offload.c b/sound/core/compress_offload.c
+index c8abebf606c1..a909437568f6 100644
+--- a/sound/core/compress_offload.c
++++ b/sound/core/compress_offload.c
+@@ -1501,3 +1501,4 @@
+ MODULE_DESCRIPTION("ALSA Compressed offload framework");
+ MODULE_AUTHOR("Vinod Koul <vinod.koul@linux.intel.com>");
+ MODULE_LICENSE("GPL v2");
++MODULE_IMPORT_NS(DMA_BUF);
+-- 
+2.43.0

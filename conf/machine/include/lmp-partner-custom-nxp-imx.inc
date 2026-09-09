@@ -329,6 +329,60 @@ BOOTSCR_LOAD_ADDR:imx93-11x11-lpddr4x-evk = "0x83500000"
 UBOOT_SUFFIX:imx93-11x11-lpddr4x-evk = "bin"
 UBOOT_DTB_NAME:imx93-11x11-lpddr4x-evk ?= "imx93-11x11-evk.dtb"
 
+# iMX95
+# Keep the Linux and boot firmware components on NXP's coherent
+# lf-6.12.49-2.2.0 release train. These overrides deliberately do not affect
+# established i.MX6/i.MX8/i.MX93 machines in this partner branch.
+TOOLCHAIN:mx95-nxp-bsp = "gcc"
+PREFERRED_PROVIDER_virtual/kernel:mx95-nxp-bsp = "linux-lmp-fslc-imx"
+PREFERRED_VERSION_linux-lmp-fslc-imx:mx95-nxp-bsp = "6.12.49+git%"
+PREFERRED_VERSION_imx-atf:mx95-nxp-bsp = "2.12+git%"
+PREFERRED_VERSION_imx-system-manager:mx95-nxp-bsp = "2025q4"
+PREFERRED_VERSION_imx-oei:mx95-nxp-bsp = "1.0.0+6.12.49"
+PREFERRED_VERSION_firmware-ele-imx:mx95-nxp-bsp = "2.0.4"
+PREFERRED_VERSION_firmware-imx:mx95-nxp-bsp = "8.30"
+PREFERRED_VERSION_optee-os-fio:mx95-nxp-bsp = "4.8.0-imx"
+PREFERRED_VERSION_optee-os-fio-mfgtool:mx95-nxp-bsp = "4.8.0-imx"
+PREFERRED_VERSION_optee-os-tadevkit:mx95-nxp-bsp = "4.8.0-imx"
+
+# NXP 6.12 builds the DDR OEI by default; TCM is opt-in.
+OEI_CONFIGS:mx95-nxp-bsp = "ddr ${@bb.utils.filter('PACKAGECONFIG', 'tcm', d)}"
+
+# Foundries OSTree/FIT boot integration. i.MX95 load addresses come from the
+# NXP 2025.04 memory map and are not interchangeable with i.MX93.
+IMX_DEFAULT_BOOTLOADER:mx95-generic-bsp ?= "u-boot-fio"
+PREFERRED_PROVIDER_virtual/bootloader:mx95-nxp-bsp ?= "u-boot-fio"
+PREFERRED_VERSION_u-boot-fio:mx95-nxp-bsp = "imx-2025.04"
+PREFERRED_PROVIDER_virtual/trusted-firmware-a:mx95-nxp-bsp ?= "imx-atf"
+UBOOT_CLASSES:mx95-generic-bsp = "uboot-fitimage"
+UBOOT_SIGN_ENABLE:sota:mx95-generic-bsp ??= "1"
+UBOOT_ENTRYPOINT:mx95-generic-bsp = "0x90400000"
+UBOOT_LOADADDRESS:mx95-generic-bsp = "0x90400000"
+UBOOT_DTB_LOADADDRESS:mx95-generic-bsp = "0x93000000"
+ATF_BINARY:mx95-generic-bsp = "arm-trusted-firmware.bin"
+EXTRA_IMAGEDEPENDS:append:mx95-generic-bsp = " virtual/trusted-firmware-a"
+KERNEL_IMAGETYPE:sota:mx95-generic-bsp = "fitImage"
+KERNEL_CLASSES:sota:mx95-generic-bsp = " kernel-lmp-fitimage "
+WKS_FILE:sota:mx95-generic-bsp = "emmc-imx-gpt-sota-imx95.wks"
+WKS_FILE_DEPENDS:append:mx95-generic-bsp = " u-boot-default-script imx-boot"
+IMAGE_BOOT_FILES:mx95-generic-bsp = "${KERNEL_IMAGETYPE} ${@make_dtb_boot_files(d)} boot.scr uEnv.txt"
+IMAGE_BOOT_FILES:sota:mx95-generic-bsp = "boot.itb"
+PREFERRED_PROVIDER_u-boot-default-script:mx95-generic-bsp = "u-boot-ostree-scr-fit"
+PREFERRED_PROVIDER_u-boot-default-script:sota:mx95-generic-bsp = "u-boot-ostree-scr-fit"
+SOTA_CLIENT_FEATURES:append:mx95-generic-bsp = " ubootenv"
+LMP_BOOT_FIRMWARE_FILES:mx95-nxp-bsp = "imx-boot u-boot.itb"
+
+# SPL does not execute bootscr on i.MX95. ostree-boot.cfg loads boot.itb from
+# the VFAT boot partition; preloading it in u-boot.itb faults after FIT verify.
+BOOTSCR_LOAD_ADDR:mx95-generic-bsp = ""
+
+# NXP multimedia components used by the i.MX95 release are GCC-only in this
+# Scarthgap integration.
+TOOLCHAIN:pn-imx-vpu-hantro = "gcc"
+TOOLCHAIN:pn-imx-vpu-hantro-daemon = "gcc"
+TOOLCHAIN:pn-nxp-afe = "gcc"
+TOOLCHAIN:pn-nxp-afe-voiceseeker = "gcc"
+
 # Cross machines / BSPs
 
 ## iMX targets should use the u-boot release based on the NXP BSP

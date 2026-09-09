@@ -72,6 +72,22 @@ KERNEL_CLASSES:mx93-generic-bsp = " kernel-lmp-fitimage "
 IMXBOOT_TARGETS:mx93-nxp-bsp = "flash_singleboot"
 PREFERRED_VERSION_u-boot-fio-mfgtool:mx93-generic-bsp ?= "imx-2024.04"
 
+# iMX95
+# The ROM-to-SPL UUU flow requires the combined flash_all container and the
+# Foundries FIT artifacts; a production flash_a55 container is not sufficient.
+UBOOT_SIGN_ENABLE:mx95-generic-bsp = "1"
+PREFERRED_PROVIDER_virtual/kernel:mx95-nxp-bsp = "linux-lmp-fslc-imx"
+IMX_DEFAULT_BOOTLOADER:mx95-generic-bsp = "u-boot-fio-mfgtool"
+PREFERRED_PROVIDER_virtual/bootloader:mx95-nxp-bsp = "u-boot-fio-mfgtool"
+PREFERRED_PROVIDER_u-boot-default-script:mx95-generic-bsp = "u-boot-ostree-scr-fit"
+IMAGE_BOOT_FILES:mx95-nxp-bsp = "imx-boot u-boot.itb boot.itb"
+KERNEL_IMAGETYPE:mx95-generic-bsp = "fitImage"
+KERNEL_CLASSES:mx95-generic-bsp = " kernel-lmp-fitimage "
+IMXBOOT_TARGETS:imx95-frdm-evk = "flash_all"
+IMXBOOT_TARGETS:imx95-15x15-lpddr4x-frdm = "flash_all"
+PREFERRED_VERSION_u-boot-fio-mfgtool:mx95-nxp-bsp = "imx-2025.04"
+MFGTOOL_FLASH_IMAGE:imx95-frdm-evk ?= "lmp-factory-image"
+
 # iMX8QM
 IMX_DEFAULT_BOOTLOADER:mx8qm-generic-bsp ?= "u-boot-fio-mfgtool"
 PREFERRED_PROVIDER_u-boot-default-script:mx8qm-generic-bsp = "u-boot-ostree-scr-fit"

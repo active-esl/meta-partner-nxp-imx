@@ -1,0 +1,139 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Oleksandr Suvorov <oleksandr.suvorov@foundries.io>
+Date: Mon, 7 Aug 2023 19:59:04 +0300
+Subject: [PATCH 13/17] [FIO toup] boot: introduce FIT_SIGNATURE_STRICT
+
+Add FIT_SIGNATURE_STRICT option to require a valid FIT configuration
+signature before any FIT images manipulations.
+
+Upstream-Status: Pending
+Signed-off-by: Oleksandr Suvorov <oleksandr.suvorov@foundries.io>
+(cherry picked from commit c1fc0cba0cef9e24356ec179f0e3a2928c3a38a9)
+---
+ boot/Kconfig       |  4 ++++
+ boot/image-board.c |  5 +++++
+ boot/image-fit.c   | 32 ++++++++++++++++++++++++++++++++
+ cmd/fpga.c         |  5 +++++
+ cmd/ximg.c         |  5 +++++
+ include/image.h    |  2 ++
+ 6 files changed, 53 insertions(+)
+
+diff --git a/boot/Kconfig b/boot/Kconfig
+index 0aa8aae4ccc..d062df43816 100644
+--- a/boot/Kconfig
++++ b/boot/Kconfig
+@@ -113,6 +113,10 @@ config FIT_RSASSA_PSS
+ 	  Enable this to support the pss padding algorithm as described
+ 	  in the rfc8017 (https://tools.ietf.org/html/rfc8017).
+ 
++config FIT_SIGNATURE_STRICT
++	bool "Requires a valid FIT configuration signature for every image"
++	select FIT_SIGNATURE
++
+ config FIT_CIPHER
+ 	bool "Enable ciphering data in a FIT uImages"
+ 	depends on DM
+diff --git a/boot/image-board.c b/boot/image-board.c
+index 514f8e63f9c..d53e69d4e08 100644
+--- a/boot/image-board.c
++++ b/boot/image-board.c
+@@ -1030,6 +1030,11 @@ int image_locate_script(void *buf, int size, const char *fit_uname,
+ 				return 1;
+ 			}
+ 
++			if (fit_conf_node_verify(fit_hdr)) {
++				puts("Cannot verify FIT config node\n");
++				return 1;
++			}
++
+ 			if (!fit_uname) {
+ 				/* If confname is empty, use the default */
+ 				if (confname && *confname)
+diff --git a/boot/image-fit.c b/boot/image-fit.c
+index 4cf66cf2535..3f1b7325c61 100644
+--- a/boot/image-fit.c
++++ b/boot/image-fit.c
+@@ -578,6 +578,38 @@ void fit_image_print(const void *fit, int image_noffset, const char *p)
+ 	}
+ }
+ 
++/**
++ * fit_conf_node_verify - verify config entry integrity
++ * @fit: pointer to the FIT format image header
++ *
++ * fit_conf_node_verify() gets a config image hash,
++ * re-calculates a config hash and compares with the value stored in hash
++ * node.
++ *
++ * returns:
++ *     0, if a hash is valid
++ *     -1, if a hash is invalid
++ *     -2, if a config node is not found
++ */
++int fit_conf_node_verify(const void *fit)
++{
++	/* validate required fit config entry */
++	int noffset = fit_conf_get_node(fit, NULL);
++	if (noffset < 0) {
++		if (CONFIG_IS_ENABLED(FIT_SIGNATURE_STRICT)) {
++			debug("FIT_SIGNATURE_STRICT requires a config node\n");
++			return -2;
++		} else {
++			return 0;
++		}
++	}
++
++	if (!fit_config_verify(fit, noffset))
++		return 0;
++
++	return -1;
++}
++
+ /**
+  * fit_get_desc - get node description property
+  * @fit: pointer to the FIT format image header
+diff --git a/cmd/fpga.c b/cmd/fpga.c
+index 9dc7b63db5d..078baf731b6 100644
+--- a/cmd/fpga.c
++++ b/cmd/fpga.c
+@@ -336,6 +336,11 @@ static int do_fpga_loadmk(struct cmd_tbl *cmdtp, int flag, int argc,
+ 			return CMD_RET_FAILURE;
+ 		}
+ 
++		if (fit_conf_node_verify(fit_hdr)) {
++			puts("Cannot verify FIT config node\n");
++			return CMD_RET_FAILURE;
++		}
++
+ 		err = fit_get_data_node(fit_hdr, fit_uname, &fit_data,
+ 					&data_size);
+ 		if (err) {
+diff --git a/cmd/ximg.c b/cmd/ximg.c
+index 29d7c3279b3..38553a2a219 100644
+--- a/cmd/ximg.c
++++ b/cmd/ximg.c
+@@ -137,6 +137,11 @@ do_imgextract(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+ 			return 1;
+ 		}
+ 
++		if (fit_conf_node_verify(fit_hdr)) {
++			puts("Cannot verify FIT config node\n");
++			return 1;
++		}
++
+ 		/* get subimage node offset */
+ 		noffset = fit_image_get_node(fit_hdr, uname);
+ 		if (noffset < 0) {
+diff --git a/include/image.h b/include/image.h
+index 7be6a6ff801..966e6dcbe0e 100644
+--- a/include/image.h
++++ b/include/image.h
+@@ -1116,6 +1116,8 @@ int fit_get_subimage_count(const void *fit, int images_noffset);
+ void fit_print_contents(const void *fit);
+ void fit_image_print(const void *fit, int noffset, const char *p);
+ 
++int fit_conf_node_verify(const void *fit);
++
+ /**
+  * fit_get_end - get FIT image size
+  * @fit: pointer to the FIT format image header
