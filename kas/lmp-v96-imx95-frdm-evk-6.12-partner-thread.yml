@@ -7,7 +7,7 @@
 header:
   version: 14
   includes:
-    - lmp-v96-imx95-frdm-evk-6.12-partner.yml
+    - kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
 
 target: packagegroup-nxp-otbr
 

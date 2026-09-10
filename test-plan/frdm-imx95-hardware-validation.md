@@ -142,7 +142,14 @@ testing. Close every required SKIP with the manual proof in the matrix above.
    `imx-m7-demos:do_deploy` for mx95 and copies `M4_DEFAULT_IMAGE_MX95` into
    `flash_all`; bypassing that path hid missing M7 support while making the
    container appear buildable.
-7. KAS includes are resolved relative to the including file. Use sibling
-   filenames for the mfgtool and Thread overlays, not a checkout-specific
-   absolute path or a second `kas/` prefix. This keeps the gates usable from a
-   Git-root checkout and from the source-only snapshot used on ai-tools.
+7. Keep KAS includes repo-relative (`kas/...`), as KAS 4.7 recommends. A
+   sibling filename only works through its file-relative compatibility
+   fallback, and a source-only snapshot mounted with `kas/` as the repository
+   root incorrectly turns `kas/...` into `kas/kas/...`. Run derived gates from
+   a real Git-root checkout (the staged ai-tools partner checkout) while
+   pointing `KAS_WORK_DIR`/`KAS_BUILD_DIR` at the reusable cache workspace.
+8. A derived distro can change a virtual provider's name without changing its
+   implementation. Foundries' generic TA-devkit recipe recognises
+   `optee-os-fio`, while `lmp-mfgtool` selects `optee-os-fio-mfgtool`; make the
+   4.8 devkit inherit the same OP-TEE build explicitly for that provider and
+   keep the NXP source revision/patch tuple shared with the runtime recipe.
