@@ -38,8 +38,8 @@ Do not track an unpinned branch in a production Factory manifest.
 
 1. Parse the exact Factory manifest and audit effective providers/versions.
 2. Build `linux-lmp-fslc-imx`, `kernel-module-nxp-wlan`,
-   `firmware-nxp-wifi`, `u-boot-fio`, `imx-atf`, System Manager, OEI, OP-TEE,
-   `imx-boot` and `mfgtool-files` independently.
+   `firmware-nxp-wifi`, `linux-imx-headers`, `u-boot-fio`, `imx-atf`, System
+   Manager, OEI, OP-TEE, `imx-boot` and `mfgtool-files` independently.
 3. Build the complete Factory image and inspect its FIT, WIC and UUU bundle.
 4. Program only with the i.MX95 UUU flow and retain serial evidence.
 5. Prove boot, OTA/rollback and board interfaces on hardware.
