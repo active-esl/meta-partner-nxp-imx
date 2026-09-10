@@ -82,7 +82,9 @@ fi
 
 if ! grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$bundle/full_image.uuu" ||
    ! grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl' "$bundle/full_image.uuu" ||
-   ! grep -Fq "write -f ../${image}.wic.gz/*" "$bundle/full_image.uuu" ||
+   ! grep -Fq 'getvar partition-size:all' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'getvar partition-type:all' "$bundle/full_image.uuu" ||
+   ! grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$bundle/full_image.uuu" ||
    ! grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bundle/full_image.uuu" ||
    ! grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$bundle/full_image.uuu"; then
     echo "unsafe bundle: full_image.uuu does not retain the MX95 and Foundries flows" >&2

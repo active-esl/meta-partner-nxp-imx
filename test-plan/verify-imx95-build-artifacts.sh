@@ -166,12 +166,14 @@ if [ "$mfgtool" -eq 1 ]; then
             bad "MX95 ROM or SPL stage does not use the NXP flash_all flow"
         fi
 
-        if grep -Fq "write -f ../${image}.wic.gz/*" "$full_script" &&
+        if grep -Fq 'getvar partition-size:all' "$full_script" &&
+           grep -Fq 'getvar partition-type:all' "$full_script" &&
+           grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$full_script" &&
            grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$full_script" &&
            grep -Fq 'flash bootloader2 ../u-boot-imx95-frdm-evk.itb' "$full_script" &&
            grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$full_script" &&
            grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$full_script"; then
-            ok "full_image.uuu writes the complete WIC and both production boot slots"
+            ok "full_image.uuu preflights and sparse-flashes the complete WIC plus both production boot slots"
         else
             bad "full_image.uuu does not retain the complete Foundries programming flow"
         fi
