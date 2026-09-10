@@ -142,3 +142,7 @@ testing. Close every required SKIP with the manual proof in the matrix above.
    `imx-m7-demos:do_deploy` for mx95 and copies `M4_DEFAULT_IMAGE_MX95` into
    `flash_all`; bypassing that path hid missing M7 support while making the
    container appear buildable.
+7. KAS includes are resolved relative to the including file. Use sibling
+   filenames for the mfgtool and Thread overlays, not a checkout-specific
+   absolute path or a second `kas/` prefix. This keeps the gates usable from a
+   Git-root checkout and from the source-only snapshot used on ai-tools.
