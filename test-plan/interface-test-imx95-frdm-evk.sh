@@ -71,7 +71,7 @@ printf -- '- Kernel: `%s`\n' "$(uname -r)"
 header "1. Platform and boot baseline"
 model=$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)
 case "$model" in
-    *FRDM*i.MX*95*|*i.MX*95*FRDM*) row "Device-tree model" "\`$model\`" PASS; P ;;
+    *FRDM-IMX95*|*FRDM*i.MX*95*|*i.MX*95*FRDM*) row "Device-tree model" "\`$model\`" PASS; P ;;
     *) row "Device-tree model" "\`${model:-unavailable}\`" FAIL; F ;;
 esac
 case "$(uname -r)" in
@@ -142,6 +142,33 @@ conditional "Waydroid FRDM container" "$require_waydroid" "systemctl is-active -
 conditional "Waydroid FRDM session" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-session.service"
 conditional "Waydroid full-screen UI" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-ui.service"
 conditional "Android boot complete" "$require_waydroid" "timeout 20 waydroid shell getprop sys.boot_completed 2>/dev/null | grep -qx 1"
+if [ "$require_waydroid" -eq 1 ]; then
+    release_config=/usr/share/waydroid-extra/waydroid-image-release.conf
+    installed_release=/etc/waydroid-extra/images/release.conf
+    if [ -r "$release_config" ] && [ -r "$installed_release" ] &&
+       [ -s /etc/waydroid-extra/images/system.img ] &&
+       [ -s /etc/waydroid-extra/images/vendor.img ] &&
+       cmp -s "$release_config" "$installed_release"; then
+        # The release file is root-owned product metadata with immutable image
+        # hashes. Validate the persistent pair, not just provisioning's exit.
+        # shellcheck disable=SC1090
+        . "$release_config"
+        system_sum=$(sha256sum /etc/waydroid-extra/images/system.img | awk '{print $1}')
+        vendor_sum=$(sha256sum /etc/waydroid-extra/images/vendor.img | awk '{print $1}')
+        if [ "$system_sum" = "${WAYDROID_SYSTEM_SHA256:-}" ] &&
+           [ "$vendor_sum" = "${WAYDROID_VENDOR_SHA256:-}" ]; then
+            row "Pinned Waydroid image pair" "\`${WAYDROID_IMAGE_RELEASE:-unnamed}\`, hashes match" PASS; P
+        else
+            row "Pinned Waydroid image pair" "persistent image hash mismatch" FAIL; F
+        fi
+    else
+        row "Pinned Waydroid image pair" "release marker or persistent image missing" FAIL; F
+    fi
+fi
+conditional "Waydroid network bridge" "$require_waydroid" "test -s /run/waydroid-lxc/network_up && ip link show waydroid0"
+conditional "Android routed network" "$require_waydroid" "timeout 20 waydroid shell ping -c 1 -W 5 1.1.1.1"
+conditional "Android DNS" "$require_waydroid" "timeout 20 waydroid shell ping -c 1 -W 5 example.com"
+conditional "Android validated Internet/HTTPS" "$require_waydroid" "timeout 20 waydroid shell dumpsys connectivity 2>/dev/null | grep -q VALIDATED"
 if [ -d /dev/binderfs ] || [ -e /dev/binder ]; then row "Android binder surface" "present" PASS; P
 elif [ "$require_waydroid" -eq 1 ]; then row "Android binder surface" "absent" FAIL; F
 else row "Android binder surface" "absent; Waydroid not required for this image" SKIP; S; fi
