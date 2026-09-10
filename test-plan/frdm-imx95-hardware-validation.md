@@ -109,8 +109,8 @@ Scarthgap BitBake does not define `UNPACKDIR`; the unresolved value is rejected
 by `do_unpack`. The vendor tarball expands directly into `WORKDIR`, so the
 partner layer overrides `S` to `WORKDIR` for `imx95-frdm-evk` only. The OTBR
 package-group dependency graph does not include this SDK: retain a separate
-`zigbee-rcp-sdk` build gate before treating the full connectivity selection as
-buildable.
+`zigbee-rcp-apps` consumer build gate, which also builds and packages the SDK,
+before treating the full connectivity selection as buildable.
 
 That connectivity release also appends a patch which removes old systemd's
 explicit rejection of router advertisements received from the interface's own
