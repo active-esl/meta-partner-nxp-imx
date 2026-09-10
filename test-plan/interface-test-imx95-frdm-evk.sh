@@ -102,7 +102,7 @@ if [ "$mmchosts" -ge 3 ]; then row "USDHC hosts" "$mmchosts (eMMC, microSD, IW61
 conditional "Inserted microSD card" 0 "for b in /sys/block/mmcblk[0-9]*; do test -d \"\$b\" || continue; test \"\$(cat \"\$b/device/type\" 2>/dev/null)\" = SD && exit 0; done; exit 1"
 
 header "4. Display, GPU and Waydroid"
-present /dev/dri/card0 "DRM card"
+conditional "DRM card" 1 "find /dev/dri -maxdepth 1 -name 'card*' | grep -q ."
 connector=""
 for c in /sys/class/drm/card*-HDMI-A-*/status; do [ -f "$c" ] && { connector=$c; break; }; done
 if [ -n "$connector" ]; then
@@ -153,8 +153,9 @@ if [ "$cards" -ge 2 ]; then row "MQS/PDM/HDMI audio cards" "$cards cards" PASS; 
 
 header "7. Board management and sensors"
 conditional "External PCF2131 RTC" 1 "grep -qi pcf2131 /sys/class/rtc/rtc*/name"
-conditional "GPIO expander PCAL6524" 1 "find /sys/bus/i2c/drivers -maxdepth 1 -type d | grep -qE 'pca953x|pcal'"
-conditional "PCA963x LED controller" 1 "find /sys/class/leds -mindepth 1 -maxdepth 1 | grep -q ."
+conditional "GPIO expander PCAL6524" 1 "find /sys/bus/i2c/drivers -path '*/pca953x/*-*' -type l | grep -q ."
+conditional "PCA963x LED controller" 1 "find /sys/class/leds -mindepth 1 -maxdepth 1 | grep -qi backlight"
+conditional "On-board EEPROM nvmem" 1 "find /sys/bus/nvmem/devices -mindepth 1 -maxdepth 1 | grep -qi eeprom"
 conditional "ADC IIO device" 1 "find /sys/bus/iio/devices -maxdepth 1 -name 'iio:device*' | grep -q ."
 conditional "Thermal zones" 1 "find /sys/class/thermal -maxdepth 1 -name 'thermal_zone*' | grep -q ."
 present /dev/watchdog0 "Hardware watchdog"

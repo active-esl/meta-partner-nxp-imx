@@ -38,7 +38,13 @@ logs locally; reference their path and SHA-256 in the committed test record.
 | Camera/ISP | Signed optional NXP camera DTBs in FIT; media/ISP/VPU kernel support | Select matching DTB, enumerate supported camera, preview through ISP to HDMI |
 | VPU/GPU/NPU | Amphion/media, DRM/GPU userspace and eIQ Neutron support | Decode known clip, render GLES, run known NPU model and save timing/output |
 | M7/M33 | System Manager M33 boot plus Linux M7 remoteproc/RPMsg | Confirm M33 banner; load known M7 firmware and exchange RPMsg round trip |
-| Board peripherals | PCF2131 RTC, EEPROM, PCAL GPIO expanders, PCA9632 LEDs, ADC, thermal, watchdog | Read RTC/EEPROM/ADC/temp; exercise spare GPIO/LED; controlled watchdog reboot |
+| Board peripherals | PCAL GPIO expanders, PCA9632 LEDs, ADC, thermal and watchdog are described by the NXP 6.12 DT; the on-board PCF2131 RTC and EEPROM are a known DT gap pending schematic/bus confirmation | Read RTC/EEPROM/ADC/temp; exercise spare GPIO/LED; controlled watchdog reboot |
+
+The NXP `lf-6.12.49-2.2.0` FRDM device tree, and the current upstream
+`lf-6.12.y` tree checked on 2026-09-10, do not instantiate the PCF2131 or
+EEPROM advertised for the board. Do not guess their I2C bus/address: confirm
+them from UM12472/design files or a controlled bus scan, then add a
+machine-scoped DT patch and retain the negative/positive probe evidence.
 
 ## Initial build gate
 
