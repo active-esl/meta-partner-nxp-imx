@@ -62,6 +62,14 @@ UUU scripts and every file consumed by the UUU scripts. Confirm that the normal
 script performs the full write and that verification is a separate optional
 operation.
 
+For i.MX95, also prove that the mfgtool `flash_all` container was assembled
+with NXP's real 15x15 M7 payload. In the `imx-boot` task log, retain the
+`m7_image.bin` source/name and container entry; in deploy output, require the
+selected `mcore-demos/imx95-15x15-evk_m7_TCM_power_mode_switch.bin` and every
+M7 firmware named by `IMAGE_BOOT_FILES` to exist and be non-empty. A successful
+build made possible by a zero-byte placeholder is a negative result, not a
+valid manufacturing artifact.
+
 The Thread gate pins NXP `meta-nxp-connectivity` at the exact
 `rel_imx_6.12.49_2.2.0` commit. Its Scarthgap declaration patch and `radvd`
 static UID allocation are compatibility work that must remain explicit and
@@ -120,3 +128,8 @@ testing. Close every required SKIP with the manual proof in the matrix above.
    image write.
 5. Re-run the smallest build gate, then the full Factory image, mfgtools build,
    programming and physical test in that order.
+6. Prefer the vendor's coherent companion-core dependency graph over a local
+   placeholder. The 2.2.0 `meta-imx` layer already makes `imx-boot` depend on
+   `imx-m7-demos:do_deploy` for mx95 and copies `M4_DEFAULT_IMAGE_MX95` into
+   `flash_all`; bypassing that path hid missing M7 support while making the
+   container appear buildable.
