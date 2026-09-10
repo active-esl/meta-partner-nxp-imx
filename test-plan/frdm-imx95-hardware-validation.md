@@ -119,6 +119,11 @@ OTBR package-group dependency graph does not include these recipes: retain a
 separate `zigbee-rcp-apps` consumer build gate, which builds and packages both,
 before treating the full connectivity selection as buildable.
 
+The application recipe is declared `CLOSED`, but NXP's file-based source does
+not ship the `LICENSE` file named by `LIC_FILES_CHKSUM`. Keep the checksum empty
+for FRDM rather than manufacturing license content; the recipe remains CLOSED
+and the consumer gate must complete without the missing-license warning.
+
 That connectivity release also appends a patch which removes old systemd's
 explicit rejection of router advertisements received from the interface's own
 link-local address. LmP v96 uses systemd 255, whose refactored `sd-ndisc`
