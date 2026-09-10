@@ -46,12 +46,14 @@ verified i.MX95 recovery archive using the atomic programming-bundle helper.
 Both programming and optional verification scripts pass the bundled UUU dry
 parser; recovery and production boot payloads are distinct.
 
-- Local bundle: `/data_drive/esl/frdm-imx95-programming/frdm-imx95-v96-product-r7`
+- Local bundle: `/data_drive/esl/frdm-imx95-programming/frdm-imx95-v96-product-r7-evidence`
 - Product WIC gzip: `dd3f63cfb4da3bd486fe3616a980931436f10e0cbc58383b0d1f80c10fe80282`
 - Production imx-boot: `0fa6438fb181dd0786bc0991b1d4dff2adbaf68d925d28045c6b2709264c5ebd`
 - Production U-Boot FIT: `18976b94fd770e12bf1cb747cc9c01a1b5d8e17612a29d3848d7e16bcbc49272`
 - Recovery mfgtools archive: `83d3a1272d71450a8707c4e1944f05e34c6155e00d4e73d0d8de7d78fad01637`
-- Post-transfer `sha256sum -c`: four of four passed
+- Product manifest: `e51f5527bbf57ded3ecda2420d56215489f6d00532f19c054356c379e4224b0c`
+- Post-transfer `sha256sum -c`: six of six passed, including the product
+  manifest and BitBake testdata provenance
 
 This report closes the build/static-artifact gate only. Programming, boot-log,
 HDMI/Weston, Waydroid network/graphics, wired Ethernet, IW612 radios and the
