@@ -13,6 +13,7 @@ is required.
 | i.MX 8M Nano DDR4 EVK (`imx8mn-ddr4-evk`) | `test-plan/fio-test-plan-imx8mn-evk.md` |
 | i.MX 8M Plus EVK (`imx8mp-lpddr4-evk`) | `test-plan/fio-test-plan-imx8mp-evk.md` |
 | i.MX 8M Quad EVK (`imx8mq-evk`) | `test-plan/fio-test-plan-imx8mq-evk.md` |
+| FRDM-IMX95 (`imx95-frdm-evk`) | `test-plan/frdm-imx95-hardware-validation.md` |
 
 Each plan is a self-contained, step-by-step procedure. Pick the plan for the
 board on your bench and follow it from top to bottom; every step lists the
@@ -51,6 +52,7 @@ The Phase 6 sweep is an executable, device-side script, one per board:
 - `test-plan/interface-test-imx8mn-evk.sh`
 - `test-plan/interface-test-imx8mp-evk.sh`
 - `test-plan/interface-test-imx8mq-evk.sh`
+- `test-plan/interface-test-imx95-frdm-evk.sh`
 
 It runs ~22 grouped checks (system, networking, storage, OP-TEE, USB, Wi-Fi,
 Bluetooth, audio, …) and prints a GitHub-flavored-markdown report with a
