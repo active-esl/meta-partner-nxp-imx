@@ -80,7 +80,7 @@ printf 'Starting %s with %s\n' "$mode" "$script"
 printf 'UUU transcript: %s\n' "$log"
 cd "$root"
 set +e
-sudo "$uuu" "$script" 2>&1 | tee "$log"
+"$uuu" "$script" 2>&1 | tee "$log"
 uuu_status=${PIPESTATUS[0]}
 set -e
 
