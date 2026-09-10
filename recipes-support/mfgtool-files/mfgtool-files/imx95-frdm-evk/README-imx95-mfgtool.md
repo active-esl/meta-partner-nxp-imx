@@ -8,6 +8,12 @@ Program the board (verification is not run):
     ./mfgtool-files-imx95-frdm-evk/uuu \
         ./mfgtool-files-imx95-frdm-evk/full_image.uuu
 
+Update only the redundant production boot firmware, retaining the existing
+Foundries WIC/OSTree filesystem:
+
+    ./mfgtool-files-imx95-frdm-evk/uuu \
+        ./mfgtool-files-imx95-frdm-evk/bootloader.uuu
+
 Optionally perform a complete read-back CRC of the WIC payload after flashing:
 
     ./mfgtool-files-imx95-frdm-evk/uuu \
@@ -28,3 +34,5 @@ Before its first persistent write, `full_image.uuu` requires the complete
 i.MX95 redundant raw-partition layout in both eMMC boot partitions and checks
 that the production container and FIT fit their respective regions. These
 preflight downloads are RAM-only; the separate read-back CRC remains optional.
+`bootloader.uuu` applies the same slot and payload preflight but performs no
+write to the eMMC user area.

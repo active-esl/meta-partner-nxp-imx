@@ -187,6 +187,7 @@ if [ "$mfgtool" -eq 1 ]; then
     if tar -xzf "$mfgtool_archive" -C "$tmpdir"; then
         bundle="${tmpdir}/${bundle_dir}"
         full_script="${bundle}/full_image.uuu"
+        bootloader_script="${bundle}/bootloader.uuu"
         verify_script="${bundle}/verify_image.uuu"
 
         if "${bundle}/uuu" -lsusb 2>&1 | grep -Fq 'libuuu_1.5.201'; then
@@ -245,6 +246,16 @@ if [ "$mfgtool" -eq 1 ]; then
             bad "verify_image.uuu does not retain separate aligned WIC read-back"
         fi
 
+        if grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$bootloader_script" &&
+           grep -Fq 'flash bootloader2 ../u-boot-imx95-frdm-evk.itb' "$bootloader_script" &&
+           grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bootloader_script" &&
+           grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$bootloader_script" &&
+           ! grep -Fq 'flash -raw2sparse all ' "$bootloader_script"; then
+            ok "bootloader.uuu updates both redundant boot sets without writing the WIC user area"
+        else
+            bad "bootloader.uuu does not retain the boot-firmware-only contract"
+        fi
+
         if cmp -s "${bundle}/imx-boot-mfgtool" "${deploy}/imx-boot-${machine}"; then
             bad "recovery and production imx-boot payloads are identical"
         else
@@ -260,6 +271,7 @@ if [ "$mfgtool" -eq 1 ]; then
         ln -s "${deploy}/imx-boot-${machine}" "${tmpdir}/imx-boot-${machine}"
         ln -s "${deploy}/u-boot-${machine}.itb" "${tmpdir}/u-boot-${machine}.itb"
         if "${bundle}/uuu" -dry "${full_script}" >/dev/null 2>&1 &&
+           "${bundle}/uuu" -dry "${bootloader_script}" >/dev/null 2>&1 &&
            "${bundle}/uuu" -dry "${verify_script}" >/dev/null 2>&1; then
             ok "bundled UUU accepts programming and optional verification scripts"
         else

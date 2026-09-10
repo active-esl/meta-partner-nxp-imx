@@ -5,10 +5,11 @@ set -euo pipefail
 
 usage() {
     cat >&2 <<'EOF'
-usage: ./program-imx95.sh check|program|verify
+usage: ./program-imx95.sh check|program|bootloader|verify
 
   check    verify the bundle and require exactly one i.MX95 in serial-download mode
   program  program the complete Foundries image; no read-back verification
+  bootloader  update both production boot sets; retain the WIC/root filesystem
   verify   run the separate, optional WIC read-back CRC
 EOF
     exit 2
@@ -16,7 +17,7 @@ EOF
 
 mode=${1:-}
 case "$mode" in
-    check|program|verify) ;;
+    check|program|bootloader|verify) ;;
     *) usage ;;
 esac
 
@@ -26,7 +27,7 @@ bundle="${root}/mfgtool-files-${machine}"
 uuu="${bundle}/uuu"
 sums="${root}/PROGRAMMING-SHA256SUMS"
 
-for file in "$uuu" "$sums" "$bundle/full_image.uuu" "$bundle/verify_image.uuu"; do
+for file in "$uuu" "$sums" "$bundle/full_image.uuu" "$bundle/bootloader.uuu" "$bundle/verify_image.uuu"; do
     if [[ ! -s "$file" ]]; then
         printf 'missing or empty programming-bundle file: %s\n' "$file" >&2
         exit 1
@@ -42,6 +43,8 @@ printf 'Verifying matched programming artifacts...\n'
 script="${bundle}/full_image.uuu"
 if [[ "$mode" == verify ]]; then
     script="${bundle}/verify_image.uuu"
+elif [[ "$mode" == bootloader ]]; then
+    script="${bundle}/bootloader.uuu"
 fi
 "$uuu" -dry "$script" >/dev/null
 

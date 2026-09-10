@@ -59,6 +59,7 @@ tar -xzf "${tmpdir}/mfgtool-files-${machine}.tar.gz" -C "$tmpdir"
 bundle="${tmpdir}/${bundle_dir}"
 for file in \
     "$bundle/uuu" \
+    "$bundle/bootloader.uuu" \
     "$bundle/full_image.uuu" \
     "$bundle/verify_image.uuu" \
     "$bundle/imx-boot-mfgtool" \
@@ -72,6 +73,15 @@ if cmp -s "$bundle/imx-boot-mfgtool" "${tmpdir}/imx-boot-${machine}"; then
 fi
 if cmp -s "$bundle/u-boot-mfgtool.itb" "${tmpdir}/u-boot-${machine}.itb"; then
     echo "unsafe bundle: recovery and production U-Boot FIT are identical" >&2
+    exit 1
+fi
+
+if ! grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$bundle/bootloader.uuu" ||
+   ! grep -Fq 'flash bootloader2 ../u-boot-imx95-frdm-evk.itb' "$bundle/bootloader.uuu" ||
+   ! grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bundle/bootloader.uuu" ||
+   ! grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$bundle/bootloader.uuu" ||
+   grep -Fq 'flash -raw2sparse all ' "$bundle/bootloader.uuu"; then
+    echo "unsafe bundle: bootloader.uuu does not update only both redundant boot sets" >&2
     exit 1
 fi
 
@@ -133,6 +143,7 @@ fi
 (
     cd "$tmpdir"
     "./${bundle_dir}/uuu" -dry "./${bundle_dir}/full_image.uuu" >/dev/null
+    "./${bundle_dir}/uuu" -dry "./${bundle_dir}/bootloader.uuu" >/dev/null
     "./${bundle_dir}/uuu" -dry "./${bundle_dir}/verify_image.uuu" >/dev/null
     sha256sum \
         "${image}.wic.gz" \
@@ -144,6 +155,7 @@ fi
         "program-imx95.sh" \
         "${bundle_dir}/uuu" \
         "${bundle_dir}/full_image.uuu" \
+        "${bundle_dir}/bootloader.uuu" \
         "${bundle_dir}/verify_image.uuu" \
         "${bundle_dir}/imx-boot-mfgtool" \
         "${bundle_dir}/u-boot-mfgtool.itb" \
