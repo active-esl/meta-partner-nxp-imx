@@ -92,6 +92,15 @@ The i.MX95 U-Boot tools recipe has `DEFAULT_PREFERENCE = "-1"` and is selected
 explicitly for `mx95-nxp-bsp`. This prevents its higher version from silently
 changing established i.MX6/i.MX8/i.MX93 builds.
 
+Do not infer that NXP's userspace UAPI package must have the same version as
+the running kernel. In the exact `lf-6.12.49-2.2.0` `meta-imx` release,
+`linux-imx-headers_6.6` is intentionally retained for multimedia consumers and
+exports `imx/linux/mxc_asrc.h`; the 6.12 kernel tree no longer exports that
+header. A local 6.12 replacement built successfully in isolation but caused
+`imx-alsa-plugins` to fail when the full image rebuilt. The provider/version
+gate is therefore the exact vendor release metadata plus a consumer compile,
+not numerical version equality.
+
 ## First boot run
 
 Keep serial capture independent from programming and resilient to USB ACM
