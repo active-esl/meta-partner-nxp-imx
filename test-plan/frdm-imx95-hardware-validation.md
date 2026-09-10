@@ -110,12 +110,13 @@ Retain the negative compile log, then require `otbr-iwxxx:do_compile`, package
 generation and the complete `packagegroup-nxp-otbr` gate to pass. Re-audit this
 patch rather than carrying it blindly when either source revision changes.
 
-NXP's `zigbee-rcp-sdk` recipe sets `S = "${UNPACKDIR}"`, but LmP v96's
-Scarthgap BitBake does not define `UNPACKDIR`; the unresolved value is rejected
-by `do_unpack`. The vendor tarball expands directly into `WORKDIR`, so the
-partner layer overrides `S` to `WORKDIR` for `imx95-frdm-evk` only. The OTBR
-package-group dependency graph does not include this SDK: retain a separate
-`zigbee-rcp-apps` consumer build gate, which also builds and packages the SDK,
+NXP's `zigbee-rcp-sdk` and `zigbee-rcp-apps` recipes set
+`S = "${UNPACKDIR}"`, but LmP v96's Scarthgap BitBake does not define
+`UNPACKDIR`; the unresolved value is rejected by `do_unpack`. The vendor SDK
+tarball and file-based application source both expand directly into `WORKDIR`,
+so the partner layer overrides `S` to `WORKDIR` for `imx95-frdm-evk` only. The
+OTBR package-group dependency graph does not include these recipes: retain a
+separate `zigbee-rcp-apps` consumer build gate, which builds and packages both,
 before treating the full connectivity selection as buildable.
 
 That connectivity release also appends a patch which removes old systemd's
