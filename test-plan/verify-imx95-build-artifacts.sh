@@ -192,6 +192,10 @@ if [ "$mfgtool" -eq 1 ]; then
 
         if grep -Fq 'getvar partition-size:all' "$full_script" &&
            grep -Fq 'getvar partition-type:all' "$full_script" &&
+           grep -Fq 'getvar partition-size:bootloader' "$full_script" &&
+           grep -Fq 'getvar partition-size:bootloader2' "$full_script" &&
+           grep -Fq 'getvar partition-size:bootloader_s' "$full_script" &&
+           grep -Fq 'getvar partition-size:bootloader2_s' "$full_script" &&
            grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$full_script" &&
            grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$full_script" &&
            grep -Fq 'flash bootloader2 ../u-boot-imx95-frdm-evk.itb' "$full_script" &&

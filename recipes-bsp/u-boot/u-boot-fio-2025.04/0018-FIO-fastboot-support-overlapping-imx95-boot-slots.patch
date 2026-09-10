@@ -1,0 +1,145 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dynamic Devices <support@dynamicdevices.co.uk>
+Date: Thu, 10 Sep 2026 15:30:00 +0100
+Subject: [PATCH] FIO: fastboot: support overlapping i.MX95 boot slots
+
+Foundries installs a complete i.MX boot container first and then replaces the
+FIT at its configured offset.  The two payloads therefore deliberately
+overlap; limiting bootloader to the bytes before bootloader2 rejects the i.MX95
+flash_a55 container, which is larger than that prefix.
+
+The Foundries mfgtool configuration also requests bootloader_s and
+bootloader2_s.  Restore those named raw partitions for the paired eMMC boot1
+hardware partition.  The 2025.04 forward port previously accepted the unknown
+Kconfig setting but did not expose either partition.
+
+Keep the overlapping primary layout opt-in so the established layout of other
+machines is unchanged.  This recipe is restricted to mx95-nxp-bsp, where the
+secondary boot set is the same layout in eMMC boot1 and does not use a
+Secondary Image Table.
+
+Upstream-Status: Inappropriate [Foundries verified-boot layout]
+Signed-off-by: Dynamic Devices <support@dynamicdevices.co.uk>
+---
+ drivers/fastboot/Kconfig                     | 18 +++++++++++
+ drivers/fastboot/fb_fsl/fb_fsl_partitions.c | 41 +++++++++++++++++++++++++-
+ include/fb_fsl.h                             |  6 ++++
+ 3 files changed, 64 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/fastboot/Kconfig b/drivers/fastboot/Kconfig
+index 67cacb09721..c68b96f24d1 100644
+--- a/drivers/fastboot/Kconfig
++++ b/drivers/fastboot/Kconfig
+@@ -131,6 +131,24 @@ config FSL_FASTBOOT_BOOTLOADER2
+ 	help
+ 	  This enables FSL implementation for Android fastboot.
+ 
++config FSL_FASTBOOT_BOOTLOADER2_OVERLAP
++	bool "Allow the primary bootloader to overlap bootloader2"
++	depends on FSL_FASTBOOT_BOOTLOADER2
++	help
++	  Keep the primary bootloader raw partition at its full size when a
++	  separate bootloader2 partition starts inside it.  This supports i.MX
++	  boot containers whose embedded FIT is replaced by a separately signed
++	  Foundries FIT at the configured bootloader2 offset.
++
++config FSL_FASTBOOT_BOOTLOADER_SECONDARY
++	bool "Expose a redundant bootloader set in eMMC boot1"
++	depends on FSL_FASTBOOT && MMC
++	help
++	  Add bootloader_s and bootloader2_s raw fastboot partitions with the
++	  same offsets and sizes as the primary set, but in the eMMC boot1
++	  hardware partition.  This is the redundant layout used by i.MX95;
++	  it does not create or require a Secondary Image Table.
++
+ config FSL_FASTBOOT_BOOTLOADER2_OFFSET
+ 	hex "2nd bootloader offset in 1k blocks"
+ 	depends on FSL_FASTBOOT_BOOTLOADER2
+diff --git a/drivers/fastboot/fb_fsl/fb_fsl_partitions.c b/drivers/fastboot/fb_fsl/fb_fsl_partitions.c
+index c355b4977dc..c18c2efb4a1 100644
+--- a/drivers/fastboot/fb_fsl/fb_fsl_partitions.c
++++ b/drivers/fastboot/fb_fsl/fb_fsl_partitions.c
+@@ -49,6 +49,12 @@ enum {
+ #ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER2
+ 	PTN_BOOTLOADER2_INDEX,
+ #endif
++#ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER_SECONDARY
++	PTN_BOOTLOADER_SECONDARY_INDEX,
++#ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER2
++	PTN_BOOTLOADER2_SECONDARY_INDEX,
++#endif
++#endif
+ };
+ 
+ struct fastboot_ptentry g_ptable[MAX_PTN];
+@@ -237,7 +243,10 @@ static int _fastboot_parts_load_from_ptable(void)
+ 	strcpy(ptable[PTN_BOOTLOADER_INDEX].name, FASTBOOT_PARTITION_BOOTLOADER);
+ 	ptable[PTN_BOOTLOADER_INDEX].start =
+ 				bootloader_mmc_offset() / dev_desc->blksz;
+-#ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER2
++#ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER2_OVERLAP
++	ptable[PTN_BOOTLOADER_INDEX].length =
++				 boot_loader_psize / dev_desc->blksz;
++#elif defined(CONFIG_FSL_FASTBOOT_BOOTLOADER2)
+ 	ptable[PTN_BOOTLOADER_INDEX].length =
+ 				(CONFIG_FSL_FASTBOOT_BOOTLOADER2_OFFSET * dev_desc->blksz - bootloader_mmc_offset())
+ 				/ dev_desc->blksz;
+@@ -265,6 +275,36 @@ static int _fastboot_parts_load_from_ptable(void)
+ 	last_bootloader_partition = PTN_BOOTLOADER2_INDEX;
+ #endif
+ 
++#ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER_SECONDARY
++	/* The redundant i.MX95 boot set occupies the paired eMMC boot1 area. */
++	strcpy(ptable[PTN_BOOTLOADER_SECONDARY_INDEX].name,
++	       FASTBOOT_PARTITION_BOOTLOADER_SECONDARY);
++	ptable[PTN_BOOTLOADER_SECONDARY_INDEX].start =
++		ptable[PTN_BOOTLOADER_INDEX].start;
++	ptable[PTN_BOOTLOADER_SECONDARY_INDEX].length =
++		ptable[PTN_BOOTLOADER_INDEX].length;
++	ptable[PTN_BOOTLOADER_SECONDARY_INDEX].partition_id =
++		FASTBOOT_MMC_BOOT1_PARTITION_ID;
++	ptable[PTN_BOOTLOADER_SECONDARY_INDEX].flags =
++		FASTBOOT_PTENTRY_FLAGS_UNERASEABLE;
++	strcpy(ptable[PTN_BOOTLOADER_SECONDARY_INDEX].fstype, "raw");
++	last_bootloader_partition = PTN_BOOTLOADER_SECONDARY_INDEX;
++#ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER2
++	strcpy(ptable[PTN_BOOTLOADER2_SECONDARY_INDEX].name,
++	       FASTBOOT_PARTITION_BOOTLOADER2_SECONDARY);
++	ptable[PTN_BOOTLOADER2_SECONDARY_INDEX].start =
++		ptable[PTN_BOOTLOADER2_INDEX].start;
++	ptable[PTN_BOOTLOADER2_SECONDARY_INDEX].length =
++		ptable[PTN_BOOTLOADER2_INDEX].length;
++	ptable[PTN_BOOTLOADER2_SECONDARY_INDEX].partition_id =
++		FASTBOOT_MMC_BOOT1_PARTITION_ID;
++	ptable[PTN_BOOTLOADER2_SECONDARY_INDEX].flags =
++		FASTBOOT_PTENTRY_FLAGS_UNERASEABLE;
++	strcpy(ptable[PTN_BOOTLOADER2_SECONDARY_INDEX].fstype, "raw");
++	last_bootloader_partition = PTN_BOOTLOADER2_SECONDARY_INDEX;
++#endif
++#endif
++
+ 	int tbl_idx;
+ 	int part_idx = 1;
+ 	int ret;
+diff --git a/include/fb_fsl.h b/include/fb_fsl.h
+index 80327b45d52..ce943b6813d 100644
+--- a/include/fb_fsl.h
++++ b/include/fb_fsl.h
+@@ -79,9 +79,15 @@
+ #define FASTBOOT_PARTITION_CACHE "cache"
+ #define FASTBOOT_PARTITION_DEVICE "device"
+ #define FASTBOOT_PARTITION_BOOTLOADER "bootloader"
++#ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER_SECONDARY
++#define FASTBOOT_PARTITION_BOOTLOADER_SECONDARY "bootloader_s"
++#endif
+ #ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER2
+ #define FASTBOOT_PARTITION_BOOTLOADER2 "bootloader2"
++#ifdef CONFIG_FSL_FASTBOOT_BOOTLOADER_SECONDARY
++#define FASTBOOT_PARTITION_BOOTLOADER2_SECONDARY "bootloader2_s"
++#endif
+ #endif
+ #define FASTBOOT_PARTITION_DATA "userdata"
+ #define FASTBOOT_PARTITION_GPT "gpt"
+ #define FASTBOOT_PARTITION_MISC "misc"
+-- 
+2.43.0

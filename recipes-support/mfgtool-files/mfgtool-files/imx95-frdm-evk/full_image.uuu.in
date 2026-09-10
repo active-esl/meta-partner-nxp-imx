@@ -26,6 +26,17 @@ FB: ucmd mmc dev ${mmcdev} 0
 # eMMC user-area target. This guards the Foundries WIC programming contract.
 FB: getvar partition-size:all
 FB: getvar partition-type:all
+# Validate both Foundries boot sets before the first persistent write.  The
+# i.MX95 primary container deliberately overlaps its separately signed FIT;
+# the secondary set mirrors that layout in eMMC boot1.
+FB: getvar partition-size:bootloader
+FB: getvar partition-type:bootloader
+FB: getvar partition-size:bootloader2
+FB: getvar partition-type:bootloader2
+FB: getvar partition-size:bootloader_s
+FB: getvar partition-type:bootloader_s
+FB: getvar partition-size:bootloader2_s
+FB: getvar partition-type:bootloader2_s
 # Use the Foundries mfgtool WIC contract. UUU decompresses the image on the
 # host, converts it to Android sparse chunks, and flashes the U-Boot `all` raw
 # target so GPT, partitions and required gaps retain the generated WIC layout.
