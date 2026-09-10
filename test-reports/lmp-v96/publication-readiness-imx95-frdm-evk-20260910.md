@@ -2,18 +2,18 @@
 
 - Result: **INCOMPLETE — local product build is reproducible, remote Factory
   inputs are not yet published and pinned**
-- Partner development head: `1f392a9`
+- Partner development head: `1a3fe7e`
 - Partner upstream/base: `foundriesio/meta-partner`, branch `nxp-imx`, head
   `176928480302c8e3b91348e07feecd3b2aa5dc83`
-- Partner delta: 60 commits, 127 changed paths, 7,807 insertions and one
+- Partner delta: 64 commits, 129 changed paths, 7,925 insertions and one
   deletion
 - Product head used for the successful r7 build: local equivalent `dfb3168`
 - BSP head used for the successful r7 build: local equivalent `625d066`
 - Distro head used for the successful r7 build: local equivalent `39af55f`
-- Curated local review branch: `review/imx95-frdm-nxp-6.12`; its six-commit
-  implementation/evidence series ends at `e2cc5a6`, before this publication
-  record is mirrored as the seventh commit
-- Development/review Git tree: `ef44a092e73efc188ad9bf98994affa2acfe370c`
+- Curated local review branch: `review/imx95-frdm-nxp-6.12`; its nine-commit
+  implementation/evidence series ends at `3fbc71c`, before this refreshed
+  publication/build record is added
+- Development/review Git tree: `13f8a6d3c89939075646da0d8606b9efb52d7710`
 
 FoundriesFactory v96 explicitly relocated NXP BSP support from `meta-lmp` to
 the `meta-partner` repository. The FRDM implementation follows that boundary:
@@ -71,5 +71,9 @@ Before triggering a production Foundries build:
 
 No GitHub repository, fork, branch, PR or Factory build was created during this
 audit. Those are external publication actions and must use the agreed
-Dynamic Devices repository location. The existing green r7 artifacts remain
-valid for the imminent bench flash and hardware validation.
+Dynamic Devices repository location. The green r8 product build at partner
+head `3fbc71c` attempted all 8,423 tasks successfully and passed the
+independent product-artifact verifier 34/34. It also proves the FRDM EEPROM
+node and the System Manager/SCMI RTC configuration; see
+`product-build-pass-imx95-frdm-evk-20260910T100352Z.md`. Its artifacts are
+valid inputs to the matching mfgtools build and imminent bench validation.
