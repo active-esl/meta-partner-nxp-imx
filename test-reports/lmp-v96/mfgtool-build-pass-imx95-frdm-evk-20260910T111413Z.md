@@ -79,10 +79,12 @@ evidence shows that each attempt successfully changed the target from MX95
 ROM `1fc9:015d` to SPL1 SDPV `1fc9:0151`, then UUU stopped. No FB command or
 eMMC write occurred.
 
-The generated script omitted the `-scanterm -scanlimited 0x800000` arguments
-used by NXP's i.MX95-capable UUU `emmc_all` flow. It therefore continued
-writing the multi-container `flash_all` image after the ROM had executed the
-first stage and disconnected. The r15 archive and programming bundle are not
-hardware-valid and must not be used. This negative result is retained because
-it demonstrates that UUU dry-run/static gates do not prove an i.MX95 staged
-USB handoff.
+The first diagnosis blamed missing `-scanterm -scanlimited` script arguments,
+but r16 disproved it: those arguments do not make UUU 1.5.179 understand a raw
+i.MX95 `flash_all` file. Source inspection then established the real cause.
+The 6.12 image uses AHAB container-header v2 and a V2X header; UUU gained those
+parsers only in 1.5.197 and 1.5.201 respectively. Version 1.5.179 therefore
+calculates the SDPS payload as the complete file and overruns the ROM/SPL
+handoff. The r15 archive and programming bundle are not hardware-valid and
+must not be used. This negative result is retained because it demonstrates
+that UUU dry-run/static gates do not prove an i.MX95 staged USB handoff.

@@ -15,4 +15,6 @@ Optionally perform a complete read-back CRC of the WIC payload after flashing:
 
 Both scripts use `imx-boot-mfgtool`, built from the i.MX95 `flash_all` target,
 and decompress the neighbouring `.wic.gz` on the host. The production
-`imx-boot` and `u-boot.itb` remain the Foundries build artifacts.
+`imx-boot` and `u-boot.itb` remain the Foundries build artifacts. This bundle
+pins UUU 1.5.201 because older releases cannot split the i.MX95 AHAB-v2/V2X
+container correctly between SDPS and SDPV.

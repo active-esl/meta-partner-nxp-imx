@@ -151,13 +151,19 @@ if [ "$mfgtool" -eq 1 ]; then
         full_script="${bundle}/full_image.uuu"
         verify_script="${bundle}/verify_image.uuu"
 
-        if grep -Fq 'SDPS: boot -scanterm -f imx-boot-mfgtool -scanlimited 0x800000' "$full_script" &&
-           grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl -scanterm -scanlimited 0x800000' "$full_script" &&
-           grep -Fq 'SDPS: boot -scanterm -f imx-boot-mfgtool -scanlimited 0x800000' "$verify_script" &&
-           grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl -scanterm -scanlimited 0x800000' "$verify_script"; then
-            ok "MX95 ROM and SPL stages use bounded container scanning"
+        if "${bundle}/uuu" -lsusb 2>&1 | grep -Fq 'libuuu_1.5.201'; then
+            ok "bundled UUU has AHAB v2 and V2X container parsing"
         else
-            bad "MX95 ROM or SPL stage can overrun its flash_all container"
+            bad "bundled UUU is not the pinned i.MX95-safe 1.5.201 release"
+        fi
+
+        if grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$full_script" &&
+           grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl' "$full_script" &&
+           grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$verify_script" &&
+           grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl' "$verify_script"; then
+            ok "MX95 ROM and SPL stages consume one flash_all container"
+        else
+            bad "MX95 ROM or SPL stage does not use the NXP flash_all flow"
         fi
 
         if grep -Fq "write -f ../${image}.wic.gz/*" "$full_script" &&

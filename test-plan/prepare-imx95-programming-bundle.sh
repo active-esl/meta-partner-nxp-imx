@@ -75,16 +75,21 @@ if cmp -s "$bundle/u-boot-mfgtool.itb" "${tmpdir}/u-boot-${machine}.itb"; then
     exit 1
 fi
 
-if ! grep -Fq 'SDPS: boot -scanterm -f imx-boot-mfgtool -scanlimited 0x800000' "$bundle/full_image.uuu" ||
-   ! grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl -scanterm -scanlimited 0x800000' "$bundle/full_image.uuu" ||
+if ! "$bundle/uuu" -lsusb 2>&1 | grep -Fq 'libuuu_1.5.201'; then
+    echo "unsafe bundle: UUU cannot parse i.MX95 AHAB v2 plus V2X containers" >&2
+    exit 1
+fi
+
+if ! grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl' "$bundle/full_image.uuu" ||
    ! grep -Fq "write -f ../${image}.wic.gz/*" "$bundle/full_image.uuu" ||
    ! grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bundle/full_image.uuu" ||
    ! grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$bundle/full_image.uuu"; then
     echo "unsafe bundle: full_image.uuu does not retain the MX95 and Foundries flows" >&2
     exit 1
 fi
-if ! grep -Fq 'SDPS: boot -scanterm -f imx-boot-mfgtool -scanlimited 0x800000' "$bundle/verify_image.uuu" ||
-   ! grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl -scanterm -scanlimited 0x800000' "$bundle/verify_image.uuu" ||
+if ! grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$bundle/verify_image.uuu" ||
+   ! grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl' "$bundle/verify_image.uuu" ||
    ! grep -Fq "crc -f ../${image}.wic.gz/*" "$bundle/verify_image.uuu" ||
    ! grep -Fq -- '-skip 0x400000 -seek 0x400000' "$bundle/verify_image.uuu"; then
     echo "unsafe bundle: optional verification or MX95 boot staging is invalid" >&2
