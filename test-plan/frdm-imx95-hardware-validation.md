@@ -89,6 +89,13 @@ tested. Foundries' deterministic-user policy turns an otherwise late rootfs
 failure into a provider-resolution error; add any future NXP daemon account to
 the partner table rather than disabling `useradd-staticids`.
 
+That connectivity release also appends a patch which removes old systemd's
+explicit rejection of router advertisements received from the interface's own
+link-local address. LmP v96 uses systemd 255, whose refactored `sd-ndisc`
+already has no such rejection. Remove the obsolete patch only for
+`imx95-frdm-evk`; do not force it onto the new source and do not lose the
+intended same-interface RA behaviour.
+
 ### Provider audit note
 
 Audit the component actually present in the image task graph, not merely every
@@ -160,6 +167,10 @@ testing. Close every required SKIP with the manual proof in the matrix above.
    root incorrectly turns `kas/...` into `kas/kas/...`. Run derived gates from
    a real Git-root checkout (the staged ai-tools partner checkout) while
    pointing `KAS_WORK_DIR`/`KAS_BUILD_DIR` at the reusable cache workspace.
+   Never mirror the partner checkout onto `KAS_WORK_DIR` with deletion enabled:
+   that root also owns KAS's pinned dependency checkouts and may own generated
+   BitBake work/stamps. Update only the partner checkout that KAS mounts as
+   `/work`; otherwise clean the affected recipes before trusting a rerun.
 8. A derived distro can change a virtual provider's name without changing its
    implementation. Foundries' generic TA-devkit recipe recognises
    `optee-os-fio`, while `lmp-mfgtool` selects `optee-os-fio-mfgtool`; make the
