@@ -102,7 +102,10 @@ repos:
       meta-imx-bsp:
 
   meta-partner-nxp-imx:
-    path: .
+    # kas-container mounts the Git checkout containing this configuration at
+    # /repo.  Keep it separate from /work, which may be a reusable checkout
+    # and build cache containing older partner-layer files.
+    path: /repo
 
 local_conf_header:
   imx95-v96-partner: |

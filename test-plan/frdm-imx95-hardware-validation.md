@@ -194,12 +194,14 @@ testing. Close every required SKIP with the manual proof in the matrix above.
    sibling filename only works through its file-relative compatibility
    fallback, and a source-only snapshot mounted with `kas/` as the repository
    root incorrectly turns `kas/...` into `kas/kas/...`. Run derived gates from
-   a real Git-root checkout (the staged ai-tools partner checkout) while
-   pointing `KAS_WORK_DIR`/`KAS_BUILD_DIR` at the reusable cache workspace.
-   Never mirror the partner checkout onto `KAS_WORK_DIR` with deletion enabled:
-   that root also owns KAS's pinned dependency checkouts and may own generated
-   BitBake work/stamps. Update only the partner checkout that KAS mounts as
-   `/work`; otherwise clean the affected recipes before trusting a rerun.
+   a real Git-root checkout (the staged ai-tools partner checkout). The v96
+   base config resolves `meta-partner-nxp-imx` from kas-container's explicit
+   `/repo` Git-root mount, while `KAS_WORK_DIR` and `KAS_BUILD_DIR` can point at
+   a reusable cache workspace. Never mirror the partner checkout onto
+   `KAS_WORK_DIR` with deletion enabled: that root also owns KAS's pinned
+   dependency checkouts and may own generated BitBake work/stamps. A config
+   using `path: .` resolves the partner layer from `/work`, not `/repo`, when
+   those mounts differ; this can silently build a stale source snapshot.
 8. A derived distro can change a virtual provider's name without changing its
    implementation. Foundries' generic TA-devkit recipe recognises
    `optee-os-fio`, while `lmp-mfgtool` selects `optee-os-fio-mfgtool`; make the
