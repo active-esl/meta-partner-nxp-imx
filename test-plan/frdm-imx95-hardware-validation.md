@@ -46,6 +46,16 @@ EEPROM advertised for the board. Do not guess their I2C bus/address: confirm
 them from UM12472/design files or a controlled bus scan, then add a
 machine-scoped DT patch and retain the negative/positive probe evidence.
 
+NXP's public [FRDM-IMX95 board page][nxp-frdm] lists the PCF2131 and EEPROM,
+and its [board block diagram][nxp-frdm-block] connects both over I2C. This is
+authoritative evidence that the devices are fitted, but not of their bus or
+address. As checked on 2026-09-10, UM12472 and the 21.15 MB
+`FRDM-IMX95-DESIGNFILES` archive are account-gated; authenticate to those
+sources or use a controlled on-board inventory before writing the nodes.
+
+[nxp-frdm]: https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX95
+[nxp-frdm-block]: https://www.nxp.com/assets/block-diagram/en/FRDM-IMX95.pdf
+
 Target 2901 is the known-good boot/flash reference, not a claim that every
 interface worked. Its retained serial log is the negative Bluetooth baseline:
 `btnxpuart` could not find `nxp/uartspi_n61x_v1.bin.se` and subsequently timed
