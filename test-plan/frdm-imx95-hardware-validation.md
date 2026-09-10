@@ -61,6 +61,21 @@ UUU scripts and every file consumed by the UUU scripts. Confirm that the normal
 script performs the full write and that verification is a separate optional
 operation.
 
+### Provider audit note
+
+Audit the component actually present in the image task graph, not merely every
+similarly named recipe that BitBake can parse. `imx-boot` includes the
+`imx-mkimage` source and, for this machine, is pinned to
+`lf-6.12.49_2.2.0`. The standalone `imx-mkimage-native` recipe is not in the
+v96 `lmp-factory-image` dependency graph. A machine override on that native
+recipe is ineffective because native recipes do not carry machine overrides;
+do not reinstate one or treat its default 6.6 version as boot-container
+evidence.
+
+The i.MX95 U-Boot tools recipe has `DEFAULT_PREFERENCE = "-1"` and is selected
+explicitly for `mx95-nxp-bsp`. This prevents its higher version from silently
+changing established i.MX6/i.MX8/i.MX93 builds.
+
 ## First boot run
 
 Keep serial capture independent from programming and resilient to USB ACM
