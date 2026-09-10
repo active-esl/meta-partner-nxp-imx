@@ -85,6 +85,13 @@ if $SUDO journalctl -k -b 0 2>/dev/null | grep -qiE 'kernel panic|oops:|watchdog
 else
     row "Fatal kernel faults this boot" "none found" PASS; P
 fi
+provider_pattern='(usdhc3-pwrseq|42850000\.mmc|42860000\.mmc|428b0000\.mmc|regulator-(ext-5v|m2-pwr|m2-mkey-pwr|usdhc2|usdhc3|vbus)|42530000\.i2c|42540000\.i2c|44350000\.i2c|438[1245]0000\.gpio|42590000\.serial|44380000\.serial|4c200000\.usb): deferred probe pending'
+if $SUDO journalctl -k -b 0 2>/dev/null | grep -Eq "${provider_pattern}"; then
+    pending=$($SUDO journalctl -k -b 0 2>/dev/null | grep -Eo "${provider_pattern}" | paste -sd, -)
+    row "FRDM provider dependency chain" "unresolved: ${pending}" FAIL; F
+else
+    row "FRDM provider dependency chain" "no retained target-2901 deferred probes" PASS; P
+fi
 present /dev/tee0 "OP-TEE client device"
 
 header "2. Foundries update and container surfaces"
