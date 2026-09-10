@@ -10,6 +10,8 @@
 - Product head used for the successful r7 build: local equivalent `dfb3168`
 - BSP head used for the successful r7 build: local equivalent `625d066`
 - Distro head used for the successful r7 build: local equivalent `39af55f`
+- Curated local review branch: `review/imx95-frdm-nxp-6.12`, head `e2cc5a6`
+- Development/review Git tree: `ef44a092e73efc188ad9bf98994affa2acfe370c`
 
 FoundriesFactory v96 explicitly relocated NXP BSP support from `meta-lmp` to
 the `meta-partner` repository. The FRDM implementation follows that boundary:
@@ -25,13 +27,19 @@ customer-specific deltas.
   local partner, BSP and distro fixes recorded in the build report.
 - The product smoke KAS pins every upstream Foundries/NXP/OE component used by
   the v96 build.
+- The 60-commit exploratory partner history has been regrouped locally into
+  six review commits: coherent BSP, IW612/provider integration, pinned KAS
+  gates, executable validation, retained evidence, and Foundries mfgtools.
+- `git diff` is empty and the Git tree hash is identical between the green
+  development head and the curated review head. Bash/POSIX syntax and
+  ShellCheck pass for all four executable FRDM validation/programming helpers.
 
 ## Publication gaps
 
 1. `DynamicDevices/meta-partner-nxp-imx` and
    `DynamicDevices/meta-partner-nxp-imx95` do not exist on GitHub.
-2. The local partner branch has no publishable Dynamic Devices remote; its only
-   remote is Foundries' upstream repository.
+2. The local development and curated review branches have no publishable
+   Dynamic Devices remote; their only remote is Foundries' upstream repository.
 3. `kas/lmp-imx95-frdm-evk-smoke.yml` deliberately uses sibling checkout paths
    for `meta-partner-nxp-imx`, `meta-dynamicdevices-bsp` and
    `meta-dynamicdevices-distro`. It is a valid local development gate, not an
