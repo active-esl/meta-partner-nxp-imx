@@ -54,12 +54,20 @@ programming:
 ```sh
 kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
 kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner-mfgtool.yml
+kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner-thread.yml
 ```
 
 Record hashes and sizes for the WIC, OSTree, FIT, `imx-boot`, mfgtools archive,
 UUU scripts and every file consumed by the UUU scripts. Confirm that the normal
 script performs the full write and that verification is a separate optional
 operation.
+
+The Thread gate pins NXP `meta-nxp-connectivity` at the exact
+`rel_imx_6.12.49_2.2.0` commit. Its Scarthgap declaration patch and `radvd`
+static UID allocation are compatibility work that must remain explicit and
+tested. Foundries' deterministic-user policy turns an otherwise late rootfs
+failure into a provider-resolution error; add any future NXP daemon account to
+the partner table rather than disabling `useradd-staticids`.
 
 ### Provider audit note
 
