@@ -12,4 +12,4 @@ local_conf_header:
   imx95-v96-partner-mfgtool-layer-scope: |
     # Recovery does not consume the optional NXP Thread/Zigbee product layers.
     # Mask their policy appends rather than weakening dangling-append checks.
-    BBMASK += "meta-partner-nxp-imx/recipes-connectivity/(otbr|zigbee-rcp-apps|zigbee-rcp-sdk)/"
+    BBMASK += "recipes-connectivity/(otbr|zigbee-rcp-apps|zigbee-rcp-sdk)/"
