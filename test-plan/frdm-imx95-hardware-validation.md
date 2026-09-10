@@ -52,6 +52,12 @@ interface worked. Its retained serial log is the negative Bluetooth baseline:
 out. The aligned 2.2.0 firmware package contains that exact image; require both
 rootfs presence and a clean functional radio test after programming.
 
+The same capture is also the retained negative dependency-chain baseline:
+USDHC, I2C, GPIO, regulator, UART and USB probes remain deferred; ALSA reports
+no sound cards; MQS lacks its GPR phandle; and the second PCIe root port cannot
+parse its interrupt. The complete evidence and replacement-image checks are in
+`test-reports/lmp-v96/target-2901-hardware-probe-baseline-imx95-frdm-evk-20260909.md`.
+
 ## Initial build gate
 
 The exact pinned v96 partner KAS configuration must complete before hardware
