@@ -19,6 +19,8 @@ bundle_dir="mfgtool-files-${machine}"
 
 for file in \
     "${deploy}/${image}.wic.gz" \
+    "${deploy}/${image}.manifest" \
+    "${deploy}/${image}.testdata.json" \
     "${deploy}/imx-boot-${machine}" \
     "${deploy}/u-boot-${machine}.itb" \
     "$archive"; do
@@ -42,6 +44,8 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 cp -L "${deploy}/${image}.wic.gz" "$tmpdir/"
+cp -L "${deploy}/${image}.manifest" "$tmpdir/"
+cp -L "${deploy}/${image}.testdata.json" "$tmpdir/"
 cp -L "${deploy}/imx-boot-${machine}" "$tmpdir/"
 cp -L "${deploy}/u-boot-${machine}.itb" "$tmpdir/"
 cp -L "$archive" "${tmpdir}/mfgtool-files-${machine}.tar.gz"
@@ -84,6 +88,8 @@ fi
     "./${bundle_dir}/uuu" -dry "./${bundle_dir}/verify_image.uuu" >/dev/null
     sha256sum \
         "${image}.wic.gz" \
+        "${image}.manifest" \
+        "${image}.testdata.json" \
         "imx-boot-${machine}" \
         "u-boot-${machine}.itb" \
         "mfgtool-files-${machine}.tar.gz" \
