@@ -22,9 +22,14 @@ FB: ucmd setenv emmc_dev 0
 FB: ucmd setenv mmcdev 0
 FB: ucmd setenv loadaddr 0x92800000
 FB: ucmd mmc dev ${mmcdev} 0
-# UUU decompresses .wic.gz on the host. FB write programs the complete
-# Foundries WIC byte-for-byte in bounded chunks, including GPT and gaps.
-FB[-t 1800000]: write -f ../@@MFGTOOL_FLASH_IMAGE@@-@@MACHINE@@@@IMAGE_NAME_SUFFIX@@.wic.gz/* -blksz 512 -each 0x4000000
+# Fail before the first write unless NXP FSL fastboot exposes its native whole
+# eMMC user-area target. This guards the Foundries WIC programming contract.
+FB: getvar partition-size:all
+FB: getvar partition-type:all
+# Use the Foundries mfgtool WIC contract. UUU decompresses the image on the
+# host, converts it to Android sparse chunks, and flashes the U-Boot `all` raw
+# target so GPT, partitions and required gaps retain the generated WIC layout.
+FB[-t 1800000]: flash -raw2sparse all ../@@MFGTOOL_FLASH_IMAGE@@-@@MACHINE@@@@IMAGE_NAME_SUFFIX@@.wic.gz/*
 # Install the production boot chain after the Foundries partition image.
 FB: flash bootloader ../imx-boot-@@MACHINE@@
 FB: flash bootloader2 ../u-boot-@@MACHINE@@.itb
