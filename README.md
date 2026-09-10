@@ -43,6 +43,13 @@ Scarthgap, so Thread support requires a separately tested compatibility port;
 do not suppress `LAYERSERIES_COMPAT` or pretend generic Linux IEEE 802.15.4
 support replaces the NXP Spinel-over-SPI userspace path.
 
+The pinned IW612 OTBR source also references
+`kDNSServiceErr_StaleData`, which is not part of Scarthgap's mDNSResponder
+2200 public API. The partner layer removes those unreachable switch cases and
+keeps every error value exposed by the linked library. This delta is part of
+the exact connectivity-release gate and must be re-audited when either OTBR or
+mDNSResponder is updated.
+
 ## FRDM-IMX95 proof order
 
 1. Parse the exact Factory manifest and audit effective providers/versions.

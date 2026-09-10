@@ -90,6 +90,13 @@ otherwise late rootfs failure into a provider-resolution error; add any future
 NXP daemon account to the partner table rather than disabling
 `useradd-staticids`.
 
+Scarthgap's mDNSResponder 2200 header does not declare
+`kDNSServiceErr_StaleData`, while the pinned NXP `otbr-iwxxx` source refers to
+it in two switch cases. The partner patch removes only those unreachable cases.
+Retain the negative compile log, then require `otbr-iwxxx:do_compile`, package
+generation and the complete `packagegroup-nxp-otbr` gate to pass. Re-audit this
+patch rather than carrying it blindly when either source revision changes.
+
 That connectivity release also appends a patch which removes old systemd's
 explicit rejection of router advertisements received from the interface's own
 link-local address. LmP v96 uses systemd 255, whose refactored `sd-ndisc`
