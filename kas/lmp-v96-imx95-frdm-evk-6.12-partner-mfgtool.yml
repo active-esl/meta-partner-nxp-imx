@@ -1,0 +1,9 @@
+# LmP v96 mfgtools integration gate for the FRDM-IMX95 partner support.
+
+header:
+  version: 14
+  includes:
+    - kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
+
+distro: lmp-mfgtool
+target: mfgtool-files

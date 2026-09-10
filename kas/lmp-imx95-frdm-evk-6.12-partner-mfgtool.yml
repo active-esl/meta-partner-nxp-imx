@@ -1,0 +1,9 @@
+# Standalone mfgtools gate for the FRDM-IMX95 NXP partner support.
+
+header:
+  version: 14
+  includes:
+    - kas/lmp-imx95-frdm-evk-6.12-partner.yml
+
+distro: lmp-mfgtool
+target: mfgtool-files

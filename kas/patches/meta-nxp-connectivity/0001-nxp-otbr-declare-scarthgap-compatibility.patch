@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dynamic Devices BSP Team <bsp@dynamicdevices.co.uk>
+Date: Thu, 10 Sep 2026 02:34:00 +0100
+Subject: [PATCH] nxp-otbr: declare Scarthgap compatibility for LmP v96 gate
+
+The NXP lf-6.12.49-2.2.0 connectivity release is based on a newer Yocto
+series, while Foundries LmP v96 is Scarthgap.  Carry this declaration only in
+the compatibility-test KAS configuration; successful parse, build and
+hardware tests remain mandatory before product use.
+
+Upstream-Status: Inappropriate [Foundries LmP v96 compatibility]
+---
+ meta-nxp-otbr/conf/layer.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meta-nxp-otbr/conf/layer.conf b/meta-nxp-otbr/conf/layer.conf
+--- a/meta-nxp-otbr/conf/layer.conf
++++ b/meta-nxp-otbr/conf/layer.conf
+@@ -3,7 +3,7 @@ BBFILES += "${LAYERDIR}/recipes-*/*.bb \
+             ${LAYERDIR}/recipes-*/*/*.bb \
+             ${LAYERDIR}/recipes-*/*/*.bbappend"
+ 
+-LAYERSERIES_COMPAT_nxp-otbr = "styhead walnascar"
++LAYERSERIES_COMPAT_nxp-otbr = "scarthgap styhead walnascar"
+ 
+ BBFILE_COLLECTIONS += "nxp-otbr"
+ BBFILE_PATTERN_nxp-otbr = "^${LAYERDIR}/"
+-- 
+2.43.0

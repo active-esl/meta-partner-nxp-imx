@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dynamic Devices BSP Team <bsp@dynamicdevices.co.uk>
+Date: Thu, 10 Sep 2026 03:35:00 +0100
+Subject: [PATCH] nxp-zigbee-rcp: declare Scarthgap compatibility for LmP v96
+
+The NXP lf-6.12.49-2.2.0 connectivity release targets newer Yocto series,
+while Foundries LmP v96 is Scarthgap. Carry the declaration in the explicit
+compatibility KAS gates; successful builds and hardware tests remain required.
+
+Upstream-Status: Inappropriate [Foundries LmP v96 compatibility]
+---
+ meta-nxp-zigbee-rcp/conf/layer.conf | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/meta-nxp-zigbee-rcp/conf/layer.conf b/meta-nxp-zigbee-rcp/conf/layer.conf
+--- a/meta-nxp-zigbee-rcp/conf/layer.conf
++++ b/meta-nxp-zigbee-rcp/conf/layer.conf
+@@ -3,7 +3,7 @@ BBFILES += "${LAYERDIR}/*.bb \
+             ${LAYERDIR}/recipes-*/*.bb \
+             ${LAYERDIR}/recipes-*/*.bbappend"
+ 
+-LAYERSERIES_COMPAT_nxp-zigbee-rcp = "styhead walnascar"
++LAYERSERIES_COMPAT_nxp-zigbee-rcp = "scarthgap styhead walnascar"
+ 
+ BBFILE_COLLECTIONS += "nxp-zigbee-rcp"
+ BBFILE_PATTERN_nxp-zigbee-rcp = "^${LAYERDIR}/"
+-- 
+2.43.0
