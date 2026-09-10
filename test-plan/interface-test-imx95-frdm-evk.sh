@@ -7,11 +7,12 @@ set -u
 require_hdmi=0
 require_waydroid=0
 require_wifi=0
+require_bluetooth=0
 require_thread=0
 require_eth1=0
 
 usage() {
-    echo "usage: $0 [--require-hdmi] [--require-waydroid] [--require-wifi] [--require-thread] [--require-second-ethernet]"
+    echo "usage: $0 [--require-hdmi] [--require-waydroid] [--require-wifi] [--require-bluetooth] [--require-thread] [--require-second-ethernet]"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -19,6 +20,7 @@ while [ "$#" -gt 0 ]; do
         --require-hdmi) require_hdmi=1 ;;
         --require-waydroid) require_waydroid=1 ;;
         --require-wifi) require_wifi=1 ;;
+        --require-bluetooth) require_bluetooth=1 ;;
         --require-thread) require_thread=1 ;;
         --require-second-ethernet) require_eth1=1 ;;
         -h|--help) usage; exit 0 ;;
@@ -59,8 +61,11 @@ conditional() {
 }
 
 printf '# FRDM-IMX95 interface test\n\n'
+# shellcheck disable=SC2016
 printf -- '- UTC: `%s`\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# shellcheck disable=SC2016
 printf -- '- Host: `%s`\n' "$(hostname)"
+# shellcheck disable=SC2016
 printf -- '- Kernel: `%s`\n' "$(uname -r)"
 
 header "1. Platform and boot baseline"
@@ -119,6 +124,11 @@ conditional "Weston compositor" "$require_hdmi" "systemctl is-active --quiet wes
 conditional "DRM render node" "$require_hdmi" "test -e /dev/dri/renderD128"
 waydroid_cmd="command -v waydroid >/dev/null 2>&1 || systemctl list-unit-files 2>/dev/null | grep -q '^waydroid-container'"
 conditional "Waydroid userspace/container" "$require_waydroid" "$waydroid_cmd"
+conditional "Waydroid image provisioning" "$require_waydroid" "systemctl is-active --quiet waydroid-image-provision.service"
+conditional "Waydroid FRDM container" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-container.service"
+conditional "Waydroid FRDM session" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-session.service"
+conditional "Waydroid full-screen UI" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-ui.service"
+conditional "Android boot complete" "$require_waydroid" "timeout 20 waydroid shell getprop sys.boot_completed 2>/dev/null | grep -qx 1"
 if [ -d /dev/binderfs ] || [ -e /dev/binder ]; then row "Android binder surface" "present" PASS; P
 elif [ "$require_waydroid" -eq 1 ]; then row "Android binder surface" "absent" FAIL; F
 else row "Android binder surface" "absent; Waydroid not required for this image" SKIP; S; fi
@@ -140,7 +150,18 @@ if [ -n "$wifi_if" ]; then
     row "IW612 Wi-Fi" "\`$wifi_if\`, modules \`${modules:-built-in/unknown}\`" PASS; P
 elif [ "$require_wifi" -eq 1 ]; then row "IW612 Wi-Fi" "no wireless interface" FAIL; F
 else row "IW612 Wi-Fi" "no interface; module/card not required for this run" SKIP; S; fi
-conditional "Bluetooth HCI" "$require_wifi" "test -d /sys/class/bluetooth/hci0"
+conditional "IW612 Bluetooth firmware" "$require_bluetooth" "test -s /lib/firmware/nxp/uartspi_n61x_v1.bin.se || test -s /usr/lib/firmware/nxp/uartspi_n61x_v1.bin.se"
+conditional "Bluetooth HCI" "$require_bluetooth" "test -d /sys/class/bluetooth/hci0"
+conditional "Bluetooth adapter powered" "$require_bluetooth" "bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'"
+if $SUDO journalctl -k -b 0 2>/dev/null | grep -i btnxpuart | grep -qiE 'failed|error|timeout|timed out|frame reassembly'; then
+    if [ "$require_bluetooth" -eq 1 ]; then
+        row "NXP Bluetooth driver health" "btnxpuart error/timeout signature found" FAIL; F
+    else
+        row "NXP Bluetooth driver health" "btnxpuart error/timeout signature found" INFO; I
+    fi
+else
+    row "NXP Bluetooth driver health" "no btnxpuart error/timeout signature" PASS; P
+fi
 conditional "IW612 Spinel SPI transport" 1 "find /dev -maxdepth 1 -name 'spidev*' | grep -q ."
 conditional "NXP IW612 OpenThread tools" "$require_thread" "command -v otbr-agent-iwxxx >/dev/null 2>&1 && command -v ot-ctl-iwxxx >/dev/null 2>&1"
 conditional "OpenThread wpan0 interface" "$require_thread" "ip link show wpan0"

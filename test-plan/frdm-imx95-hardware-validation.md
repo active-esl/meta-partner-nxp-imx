@@ -172,7 +172,8 @@ HDMI, IW612 and the second Ethernet port connected, run on the target:
 
 ```sh
 sudo ./interface-test-imx95-frdm-evk.sh \
-  --require-hdmi --require-wifi --require-thread --require-second-ethernet \
+  --require-hdmi --require-wifi --require-bluetooth --require-thread \
+  --require-second-ethernet \
   | tee interface-test-results-imx95-frdm-evk-$(date -u +%Y%m%dT%H%M%SZ).md
 ```
 
@@ -180,8 +181,8 @@ For the product image, add the Waydroid hard gate:
 
 ```sh
 sudo ./interface-test-imx95-frdm-evk.sh \
-  --require-hdmi --require-waydroid --require-wifi --require-thread \
-  --require-second-ethernet
+  --require-hdmi --require-waydroid --require-wifi --require-bluetooth \
+  --require-thread --require-second-ethernet
 ```
 
 The script is a discovery/regression sweep, not the whole acceptance test. Its
