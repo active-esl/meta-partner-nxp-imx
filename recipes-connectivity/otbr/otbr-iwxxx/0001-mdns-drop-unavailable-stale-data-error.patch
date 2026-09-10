@@ -1,0 +1,47 @@
+From 1bb3fb0b506a25442832116f45ab37f00d9ddb67 Mon Sep 17 00:00:00 2001
+From: Dynamic Devices BSP Team <support@dynamicdevices.co.uk>
+Date: Thu, 10 Sep 2026 04:35:00 +0000
+Subject: [PATCH] mdns: drop unavailable stale-data error
+
+The Scarthgap mDNSResponder 2200 public dns_sd.h ends its error enum at
+kDNSServiceErr_NotPermitted and does not declare kDNSServiceErr_StaleData.
+The pinned NXP IW612 OTBR source nevertheless handles that value in its
+string and retry classification switches, which makes otbr-iwxxx fail to
+compile.
+
+The value cannot be returned by the linked Scarthgap library when it is not
+part of that public API.  Remove only those two switch cases, retaining all
+error values that mDNSResponder 2200 exposes.  Current generic OTBR follows
+the same approach and does not reference StaleData.
+
+Upstream-Status: Pending
+Signed-off-by: Dynamic Devices BSP Team <support@dynamicdevices.co.uk>
+---
+ src/mdns/mdns_mdnssd.cpp | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/src/mdns/mdns_mdnssd.cpp b/src/mdns/mdns_mdnssd.cpp
+index bf00a89..5ba7714 100644
+--- a/src/mdns/mdns_mdnssd.cpp
++++ b/src/mdns/mdns_mdnssd.cpp
+@@ -213,9 +213,6 @@ const char *ErrorToString(DNSServiceErrorType aError)
+     case kDNSServiceErr_DefunctConnection:
+         return "Defunct Connection";
+ 
+-    case kDNSServiceErr_StaleData:
+-        return "Stale Data";
+-
+     default:
+         return "Unhandled Error";
+     }
+@@ -236,7 +233,6 @@ bool IsRetryableError(DNSServiceErrorType aError)
+     case kDNSServiceErr_DoubleNAT:
+     case kDNSServiceErr_Timeout:
+     case kDNSServiceErr_DefunctConnection:
+-    case kDNSServiceErr_StaleData:
+     case kDNSServiceErr_BadTime:
+     case kDNSServiceErr_Firewall:
+     case kDNSServiceErr_NATPortMappingUnsupported:
+-- 
+2.43.0
+
