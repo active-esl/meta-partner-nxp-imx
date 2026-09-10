@@ -10,8 +10,9 @@
   `ad8f3a4533de4b3c6362142b308ca12a7eaa84fc`
 - Dynamic Devices distro revision:
   `9d693eec2d3e841f094ce6547f3ada17d2360868`
-- Hardware boot/runtime verification: **OPEN** — this report ends after the
-  successful write; eMMC boot and peripheral evidence are separate gates
+- Hardware boot/runtime verification: **FAIL** — the subsequent cold-boot gate
+  exposed a production SPL/eMMC boot-partition mismatch; see
+  `product-emmc-boot-failure-imx95-frdm-evk-20260910T174813Z.md`
 
 ## Product build
 
@@ -92,8 +93,10 @@ account. The host's UUU udev rules already grant access, so invoking UUU with
 `sudo` is an avoidable failure mode and is no longer part of the maintained
 operator path. The optional WIC read-back CRC was deliberately not run.
 
-## Next gate
+## Subsequent gate result
 
-Power off, set SW1 to eMMC boot `(1,0)`, power on, and preserve the complete
-serial log. Prove first-boot filesystem expansion, production U-Boot/FIT and
-Linux boot, then run the requirement-by-requirement hardware validation plan.
+Two cold boots with SW1 at eMMC `(1,0)` produced no production UART bytes or
+DHCP lease. Read-only recovery inspection proved that both eMMC boot hardware
+partitions were programmed correctly but the production SPL was configured to
+read its FIT from the empty user area. This programming PASS remains valid;
+boot/runtime validation resumes with corrected production boot artifacts.
