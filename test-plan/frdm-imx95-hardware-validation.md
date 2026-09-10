@@ -46,6 +46,12 @@ EEPROM advertised for the board. Do not guess their I2C bus/address: confirm
 them from UM12472/design files or a controlled bus scan, then add a
 machine-scoped DT patch and retain the negative/positive probe evidence.
 
+Target 2901 is the known-good boot/flash reference, not a claim that every
+interface worked. Its retained serial log is the negative Bluetooth baseline:
+`btnxpuart` could not find `nxp/uartspi_n61x_v1.bin.se` and subsequently timed
+out. The aligned 2.2.0 firmware package contains that exact image; require both
+rootfs presence and a clean functional radio test after programming.
+
 ## Initial build gate
 
 The exact pinned v96 partner KAS configuration must complete before hardware
