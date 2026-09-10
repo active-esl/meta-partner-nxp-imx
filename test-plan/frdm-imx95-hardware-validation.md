@@ -88,6 +88,15 @@ UUU scripts and every file consumed by the UUU scripts. Confirm that the normal
 script performs the full write and that verification is a separate optional
 operation.
 
+For the i.MX95 multi-container `flash_all` image, require both generated UUU
+scripts to use `-scanterm -scanlimited 0x800000` on the SDPS boot and SDPV
+`-skipspl` write stages. Without bounded container scanning, the ROM executes
+the first container and re-enumerates from MX95 SDPS (`1fc9:015c/015d`) to SPL1
+SDPV (`1fc9:0151`) while the host is still writing later container bytes. UUU
+then reports `HID(W): LIBUSB_ERROR_IO` even though the first-stage handoff
+occurred. A dry parse cannot detect this transport failure; retain kernel USB
+and UUU evidence from a real ROM-to-SDPV-to-fastboot transition.
+
 Foundries publishes the production image and mfgtools as separate build runs.
 Preserve that separation locally too. If local gates deliberately share one
 `KAS_BUILD_DIR`, run the mfgtool gate before the production Factory gate: both

@@ -2,16 +2,18 @@ uuu_version 1.4.149
 
 # Optional, standalone read-back verification. This is deliberately separate
 # from full_image.uuu so normal production programming does not pay the cost.
-SDP: boot -f imx-boot-mfgtool
-SDPS: boot -f imx-boot-mfgtool
+# MX95 flash_all contains multiple boot containers; terminate each transfer at
+# the container boundary exactly as NXP's UUU emmc_all flow does.
+SDP: boot -f imx-boot-mfgtool -scanlimited 0x800000
+SDPS: boot -scanterm -f imx-boot-mfgtool -scanlimited 0x800000
 
 SDPU: delay 1000
-SDPU: write -f imx-boot-mfgtool -offset 0x57c00
-SDPU: jump
+SDPU: write -f imx-boot-mfgtool -offset 0x57c00 -scanlimited 0x800000
+SDPU: jump -scanlimited 0x800000
 
 SDPV: delay 1000
-SDPV: write -f imx-boot-mfgtool -skipspl
-SDPV: jump
+SDPV: write -f imx-boot-mfgtool -skipspl -scanterm -scanlimited 0x800000
+SDPV: jump -scanlimited 0x800000
 
 FB: delay 5000
 FB: ucmd setenv fastboot_dev mmc
