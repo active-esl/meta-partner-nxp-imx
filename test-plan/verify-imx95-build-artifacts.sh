@@ -4,19 +4,24 @@
 set -u
 
 usage() {
-    echo "usage: $0 DEPLOY_DIR [--product]" >&2
+    echo "usage: $0 DEPLOY_DIR [--product] [--mfgtool]" >&2
     exit 2
 }
 
-if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
     usage
 fi
 deploy=$1
+shift
 product=0
-if [ "$#" -eq 2 ]; then
-    [ "$2" = "--product" ] || usage
-    product=1
-fi
+mfgtool=0
+for option in "$@"; do
+    case "$option" in
+        --product) product=1 ;;
+        --mfgtool) mfgtool=1 ;;
+        *) usage ;;
+    esac
+done
 
 machine=imx95-frdm-evk
 image="lmp-factory-image-${machine}"
@@ -48,6 +53,15 @@ need_package() {
         ok "manifest selects $package"
     else
         bad "manifest does not select $package"
+    fi
+}
+
+need_archive_member() {
+    member=$1
+    if tar -tzf "$mfgtool_archive" 2>/dev/null | grep -Fqx "$bundle_dir/$member"; then
+        ok "mfgtool bundle contains $member"
+    else
+        bad "mfgtool bundle does not contain $member"
     fi
 }
 
@@ -99,12 +113,79 @@ if [ "$product" -eq 1 ]; then
     done
 fi
 
+if [ "$mfgtool" -eq 1 ]; then
+    mfgtool_archive="${deploy}/mfgtool-files-${machine}.tar.gz"
+    bundle_dir="mfgtool-files-${machine}"
+    need_file "mfgtool-files-${machine}.tar.gz"
+
+    for member in \
+        README.md \
+        bootloader.uuu \
+        fitImage-imx95-frdm-evk-mfgtool \
+        full_image.uuu \
+        imx-boot-mfgtool \
+        u-boot-mfgtool.itb \
+        uuu \
+        verify_image.uuu; do
+        need_archive_member "$member"
+    done
+
+    tmpdir=$(mktemp -d) || exit 1
+    trap 'rm -rf -- "$tmpdir"' EXIT HUP INT TERM
+    if tar -xzf "$mfgtool_archive" -C "$tmpdir"; then
+        bundle="${tmpdir}/${bundle_dir}"
+        full_script="${bundle}/full_image.uuu"
+        verify_script="${bundle}/verify_image.uuu"
+
+        if grep -Fq "write -f ../${image}.wic.gz/*" "$full_script" &&
+           grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$full_script" &&
+           grep -Fq 'flash bootloader2 ../u-boot-imx95-frdm-evk.itb' "$full_script" &&
+           grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$full_script" &&
+           grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$full_script"; then
+            ok "full_image.uuu writes the complete WIC and both production boot slots"
+        else
+            bad "full_image.uuu does not retain the complete Foundries programming flow"
+        fi
+
+        if grep -Fq "crc -f ../${image}.wic.gz/*" "$verify_script" &&
+           grep -Fq -- '-skip 0x400000 -seek 0x400000' "$verify_script"; then
+            ok "verify_image.uuu retains separate aligned WIC read-back"
+        else
+            bad "verify_image.uuu does not retain separate aligned WIC read-back"
+        fi
+
+        if cmp -s "${bundle}/imx-boot-mfgtool" "${deploy}/imx-boot-${machine}"; then
+            bad "recovery and production imx-boot payloads are identical"
+        else
+            ok "recovery and production imx-boot payloads are distinct"
+        fi
+        if cmp -s "${bundle}/u-boot-mfgtool.itb" "${deploy}/u-boot-${machine}.itb"; then
+            bad "recovery and production U-Boot FIT payloads are identical"
+        else
+            ok "recovery and production U-Boot FIT payloads are distinct"
+        fi
+
+        ln -s "${deploy}/${image}.wic.gz" "${tmpdir}/${image}.wic.gz"
+        ln -s "${deploy}/imx-boot-${machine}" "${tmpdir}/imx-boot-${machine}"
+        ln -s "${deploy}/u-boot-${machine}.itb" "${tmpdir}/u-boot-${machine}.itb"
+        if "${bundle}/uuu" -dry "${full_script}" >/dev/null 2>&1 &&
+           "${bundle}/uuu" -dry "${verify_script}" >/dev/null 2>&1; then
+            ok "bundled UUU accepts programming and optional verification scripts"
+        else
+            bad "bundled UUU rejects a programming or verification script"
+        fi
+    else
+        bad "mfgtool bundle cannot be extracted"
+    fi
+fi
+
 printf '\nArtifact fingerprints\n'
 for artifact in \
     "${image}.wic.gz" \
     "imx-boot-${machine}" \
     "u-boot-${machine}.itb" \
-    "${image}.manifest"; do
+    "${image}.manifest" \
+    "mfgtool-files-${machine}.tar.gz"; do
     [ -s "${deploy}/${artifact}" ] && sha256sum "${deploy}/${artifact}"
 done
 

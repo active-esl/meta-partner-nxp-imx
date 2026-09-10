@@ -65,13 +65,17 @@ For FRDM-IMX95, validate a completed deploy directory before programming:
 
 ```sh
 test-plan/verify-imx95-build-artifacts.sh \
-  build/tmp/deploy/images/imx95-frdm-evk --product
+  build/tmp/deploy/images/imx95-frdm-evk --product --mfgtool
 ```
 
 Omit `--product` for the standalone partner-layer Factory gate. Product mode
 also requires Weston, Waydroid, both Zigbee RCP recipes and the NXP OTBR
-package group in the image manifest. The verifier prints SHA-256 fingerprints
-for the publishable WIC, production boot container, U-Boot FIT and manifest.
+package group in the image manifest. Add `--mfgtool` when the deploy directory
+also contains the manufacturing archive. This checks the i.MX95 recovery
+payloads, complete Foundries WIC write, both production boot slots, separate
+optional read-back script and UUU dry-run parsing. The verifier prints SHA-256
+fingerprints for the publishable WIC, production boot container, U-Boot FIT,
+manifest and manufacturing archive when present.
 
 Completed-run evidence is committed under **`test-reports/<lmp-release>/`** (e.g.
 `test-reports/lmp-v96/`), keyed by LmP release line — the machine name is in each
