@@ -52,15 +52,27 @@ The exact pinned v96 partner KAS configuration must complete before hardware
 programming:
 
 ```sh
-kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
 kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner-mfgtool.yml
 kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner-thread.yml
+kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
 ```
 
 Record hashes and sizes for the WIC, OSTree, FIT, `imx-boot`, mfgtools archive,
 UUU scripts and every file consumed by the UUU scripts. Confirm that the normal
 script performs the full write and that verification is a separate optional
 operation.
+
+Foundries publishes the production image and mfgtools as separate build runs.
+Preserve that separation locally too. If local gates deliberately share one
+`KAS_BUILD_DIR`, run the mfgtool gate before the production Factory gate: both
+providers deploy generic `imx-boot-${MACHINE}` and `u-boot-${MACHINE}.itb`
+links, so the last provider built owns those links. Immediately before UUU,
+require the external production `imx-boot-${MACHINE}` link to resolve to
+`flash_a55`, require its hash to differ from the bundled `imx-boot-mfgtool`
+`flash_all` container, and require the external U-Boot FIT to differ from the
+bundled mfgtool FIT. A successful mfgtools build followed directly by flashing
+from its shared deploy directory can otherwise install recovery boot payloads
+in the production boot slots.
 
 For i.MX95, also prove that the mfgtool `flash_all` container was assembled
 with NXP's real 15x15 M7 payload. In the `imx-boot` task log, retain the
