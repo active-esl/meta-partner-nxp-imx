@@ -4,22 +4,37 @@
 set -u
 
 usage() {
-    echo "usage: $0 DEPLOY_DIR [--product] [--mfgtool]" >&2
+    echo "usage: $0 DEPLOY_DIR [--product] [--mfgtool] [--mfgtool-archive PATH]" >&2
     exit 2
 }
 
-if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
+if [ "$#" -lt 1 ]; then
     usage
 fi
 deploy=$1
 shift
 product=0
 mfgtool=0
-for option in "$@"; do
-    case "$option" in
-        --product) product=1 ;;
-        --mfgtool) mfgtool=1 ;;
-        *) usage ;;
+mfgtool_archive_arg=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --product)
+            product=1
+            shift
+            ;;
+        --mfgtool)
+            mfgtool=1
+            shift
+            ;;
+        --mfgtool-archive)
+            [ "$#" -ge 2 ] || usage
+            mfgtool=1
+            mfgtool_archive_arg=$2
+            shift 2
+            ;;
+        *)
+            usage
+            ;;
     esac
 done
 
@@ -128,9 +143,18 @@ if [ "$product" -eq 1 ]; then
 fi
 
 if [ "$mfgtool" -eq 1 ]; then
-    mfgtool_archive="${deploy}/mfgtool-files-${machine}.tar.gz"
+    if [ -n "$mfgtool_archive_arg" ]; then
+        mfgtool_archive=$mfgtool_archive_arg
+        if [ -s "$mfgtool_archive" ]; then
+            ok "external mfgtool archive is non-empty"
+        else
+            bad "external mfgtool archive is missing or empty: $mfgtool_archive"
+        fi
+    else
+        mfgtool_archive="${deploy}/mfgtool-files-${machine}.tar.gz"
+        need_file "mfgtool-files-${machine}.tar.gz"
+    fi
     bundle_dir="mfgtool-files-${machine}"
-    need_file "mfgtool-files-${machine}.tar.gz"
 
     for member in \
         README.md \
@@ -219,6 +243,10 @@ for artifact in \
     "mfgtool-files-${machine}.tar.gz"; do
     [ -s "${deploy}/${artifact}" ] && sha256sum "${deploy}/${artifact}"
 done
+
+if [ "$mfgtool" -eq 1 ] && [ -s "$mfgtool_archive" ]; then
+    sha256sum "$mfgtool_archive"
+fi
 
 printf '\nSummary: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
