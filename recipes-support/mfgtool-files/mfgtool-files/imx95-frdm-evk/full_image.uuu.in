@@ -37,6 +37,25 @@ FB: getvar partition-size:bootloader_s
 FB: getvar partition-type:bootloader_s
 FB: getvar partition-size:bootloader2_s
 FB: getvar partition-type:bootloader2_s
+# libuuu records each getvar response under its upper-case @NAME@ key.  Reject
+# a recovery U-Boot which exposes the incomplete legacy layout before writing
+# the multi-gigabyte WIC.  The 4 MiB container deliberately overlaps the FIT
+# span beginning at eMMC boot-partition block 0x300.
+FB: if @PARTITION-SIZE:BOOTLOADER@ != 0X400000 then ucmd false
+FB: if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false
+FB: if @PARTITION-SIZE:BOOTLOADER2@ != 0X3A0000 then ucmd false
+FB: if @PARTITION-TYPE:BOOTLOADER2@ != RAW then ucmd false
+FB: if @PARTITION-SIZE:BOOTLOADER_S@ != 0X400000 then ucmd false
+FB: if @PARTITION-TYPE:BOOTLOADER_S@ != RAW then ucmd false
+FB: if @PARTITION-SIZE:BOOTLOADER2_S@ != 0X3A0000 then ucmd false
+FB: if @PARTITION-TYPE:BOOTLOADER2_S@ != RAW then ucmd false
+# Download the production payloads to RAM and compare their actual sizes with
+# the asserted live slots.  FB download sets U-Boot's ${filesize}; ucmd failure
+# propagates to UUU.  These are non-persistent transfers and remain before WIC.
+FB: download -f ../imx-boot-@@MACHINE@@
+FB: ucmd if itest ${filesize} -le 400000; then true; else false; fi
+FB: download -f ../u-boot-@@MACHINE@@.itb
+FB: ucmd if itest ${filesize} -le 3a0000; then true; else false; fi
 # Use the Foundries mfgtool WIC contract. UUU decompresses the image on the
 # host, converts it to Android sparse chunks, and flashes the U-Boot `all` raw
 # target so GPT, partitions and required gaps retain the generated WIC layout.

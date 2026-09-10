@@ -88,10 +88,38 @@ if ! grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$bundle/full_image.uuu" ||
    ! grep -Fq 'getvar partition-size:bootloader2' "$bundle/full_image.uuu" ||
    ! grep -Fq 'getvar partition-size:bootloader_s' "$bundle/full_image.uuu" ||
    ! grep -Fq 'getvar partition-size:bootloader2_s' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-SIZE:BOOTLOADER@ != 0X400000 then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-SIZE:BOOTLOADER2@ != 0X3A0000 then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-TYPE:BOOTLOADER2@ != RAW then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-SIZE:BOOTLOADER_S@ != 0X400000 then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-TYPE:BOOTLOADER_S@ != RAW then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-SIZE:BOOTLOADER2_S@ != 0X3A0000 then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-TYPE:BOOTLOADER2_S@ != RAW then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'download -f ../imx-boot-imx95-frdm-evk' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'itest ${filesize} -le 400000' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'download -f ../u-boot-imx95-frdm-evk.itb' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'itest ${filesize} -le 3a0000' "$bundle/full_image.uuu" ||
    ! grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$bundle/full_image.uuu" ||
    ! grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bundle/full_image.uuu" ||
    ! grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$bundle/full_image.uuu"; then
     echo "unsafe bundle: full_image.uuu does not retain the MX95 and Foundries flows" >&2
+    exit 1
+fi
+
+last_preflight=$(grep -nF 'itest ${filesize} -le 3a0000' "$bundle/full_image.uuu" | tail -n 1 | cut -d: -f1)
+first_write=$(grep -nF 'flash -raw2sparse all ' "$bundle/full_image.uuu" | head -n 1 | cut -d: -f1)
+if [ -z "$last_preflight" ] || [ -z "$first_write" ] || [ "$last_preflight" -ge "$first_write" ]; then
+    echo "unsafe bundle: complete i.MX95 preflight must precede the first persistent write" >&2
+    exit 1
+fi
+
+if [ "$(stat -Lc '%s' "${tmpdir}/imx-boot-${machine}")" -gt "$((0x400000))" ]; then
+    echo "unsafe bundle: production imx-boot exceeds the 4 MiB bootloader slot" >&2
+    exit 1
+fi
+if [ "$(stat -Lc '%s' "${tmpdir}/u-boot-${machine}.itb")" -gt "$((0x3a0000))" ]; then
+    echo "unsafe bundle: production U-Boot FIT exceeds the 0x3a0000-byte bootloader2 slot" >&2
     exit 1
 fi
 if ! grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$bundle/verify_image.uuu" ||

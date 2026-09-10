@@ -18,3 +18,8 @@ and decompress the neighbouring `.wic.gz` on the host. The production
 `imx-boot` and `u-boot.itb` remain the Foundries build artifacts. This bundle
 pins UUU 1.5.201 because older releases cannot split the i.MX95 AHAB-v2/V2X
 container correctly between SDPS and SDPV.
+
+Before its first persistent write, `full_image.uuu` requires the complete
+i.MX95 redundant raw-partition layout in both eMMC boot partitions and checks
+that the production container and FIT fit their respective regions. These
+preflight downloads are RAM-only; the separate read-back CRC remains optional.

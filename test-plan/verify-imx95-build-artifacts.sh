@@ -101,6 +101,18 @@ case "$boot_target" in
 esac
 
 need_file "u-boot-${machine}.itb"
+if [ -s "${deploy}/imx-boot-${machine}" ] &&
+   [ "$(stat -Lc '%s' "${deploy}/imx-boot-${machine}")" -le "$((0x400000))" ]; then
+    ok "production imx-boot fits the 4 MiB bootloader slot"
+else
+    bad "production imx-boot exceeds the 4 MiB bootloader slot"
+fi
+if [ -s "${deploy}/u-boot-${machine}.itb" ] &&
+   [ "$(stat -Lc '%s' "${deploy}/u-boot-${machine}.itb")" -le "$((0x3a0000))" ]; then
+    ok "production U-Boot FIT fits the 0x3a0000-byte bootloader2 slot"
+else
+    bad "production U-Boot FIT exceeds the 0x3a0000-byte bootloader2 slot"
+fi
 need_file "lmp-boot-firmware/imx-boot"
 need_file "lmp-boot-firmware/u-boot.itb"
 need_file arm-trusted-firmware.bin
@@ -196,12 +208,30 @@ if [ "$mfgtool" -eq 1 ]; then
            grep -Fq 'getvar partition-size:bootloader2' "$full_script" &&
            grep -Fq 'getvar partition-size:bootloader_s' "$full_script" &&
            grep -Fq 'getvar partition-size:bootloader2_s' "$full_script" &&
+           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER@ != 0X400000 then ucmd false' "$full_script" &&
+           grep -Fq 'if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false' "$full_script" &&
+           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER2@ != 0X3A0000 then ucmd false' "$full_script" &&
+           grep -Fq 'if @PARTITION-TYPE:BOOTLOADER2@ != RAW then ucmd false' "$full_script" &&
+           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER_S@ != 0X400000 then ucmd false' "$full_script" &&
+           grep -Fq 'if @PARTITION-TYPE:BOOTLOADER_S@ != RAW then ucmd false' "$full_script" &&
+           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER2_S@ != 0X3A0000 then ucmd false' "$full_script" &&
+           grep -Fq 'if @PARTITION-TYPE:BOOTLOADER2_S@ != RAW then ucmd false' "$full_script" &&
+           grep -Fq 'download -f ../imx-boot-imx95-frdm-evk' "$full_script" &&
+           grep -Fq 'itest ${filesize} -le 400000' "$full_script" &&
+           grep -Fq 'download -f ../u-boot-imx95-frdm-evk.itb' "$full_script" &&
+           grep -Fq 'itest ${filesize} -le 3a0000' "$full_script" &&
            grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$full_script" &&
            grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$full_script" &&
            grep -Fq 'flash bootloader2 ../u-boot-imx95-frdm-evk.itb' "$full_script" &&
            grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$full_script" &&
            grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$full_script"; then
-            ok "full_image.uuu preflights and sparse-flashes the complete WIC plus both production boot slots"
+            last_preflight=$(grep -nF 'itest ${filesize} -le 3a0000' "$full_script" | tail -n 1 | cut -d: -f1)
+            first_write=$(grep -nF 'flash -raw2sparse all ' "$full_script" | head -n 1 | cut -d: -f1)
+            if [ -n "$last_preflight" ] && [ -n "$first_write" ] && [ "$last_preflight" -lt "$first_write" ]; then
+                ok "full_image.uuu asserts live slot and payload sizes before sparse-flashing the WIC plus both boot sets"
+            else
+                bad "full_image.uuu performs a persistent write before completing its i.MX95 preflight"
+            fi
         else
             bad "full_image.uuu does not retain the complete Foundries programming flow"
         fi
