@@ -97,6 +97,27 @@ already has no such rejection. Remove the obsolete patch only for
 `imx95-frdm-evk`; do not force it onto the new source and do not lose the
 intended same-interface RA behaviour.
 
+### Product metadata gate
+
+Before spending a full image build or a board-programming cycle, resolve the
+actual product KAS configuration with `bitbake -e lmp-factory-image` and retain
+the generated environment's hash. For the HDMI + Waydroid product, require all
+of the following in the effective values rather than only in source comments:
+
+- `DD_PRODUCT_FEATURES` contains both `display` and `android-container`;
+- the Android package group resolves to `waydroid`, and the Waydroid recipe is
+  compatible with `imx95-frdm-evk`;
+- Wayland, OpenGL, Vulkan and the host audio features required by Waydroid are
+  present;
+- Weston/Wayland, IW612 firmware/tools, Zigbee RCP and NXP OTBR are in the
+  image dependency graph;
+- the machine-scoped Binder/BinderFS fragment is in the selected kernel's
+  source URI;
+- i.MX8MM panel rotation and fixed DRM-card policy do not leak onto FRDM HDMI.
+
+This is a metadata gate only. It prevents avoidable long builds but cannot be
+promoted to built, booted or hardware-proven evidence.
+
 ### Provider audit note
 
 Audit the component actually present in the image task graph, not merely every
