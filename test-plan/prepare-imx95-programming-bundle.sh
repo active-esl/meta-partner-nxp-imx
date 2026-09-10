@@ -12,6 +12,8 @@ usage() {
 deploy=$1
 archive=$2
 output=$3
+helper_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+operator="${helper_dir}/program-imx95-bundle.sh"
 
 machine=imx95-frdm-evk
 image="lmp-factory-image-${machine}"
@@ -23,7 +25,8 @@ for file in \
     "${deploy}/${image}.testdata.json" \
     "${deploy}/imx-boot-${machine}" \
     "${deploy}/u-boot-${machine}.itb" \
-    "$archive"; do
+    "$archive" \
+    "$operator"; do
     [ -s "$file" ] || { echo "missing or empty: $file" >&2; exit 1; }
 done
 
@@ -49,6 +52,8 @@ cp -L "${deploy}/${image}.testdata.json" "$tmpdir/"
 cp -L "${deploy}/imx-boot-${machine}" "$tmpdir/"
 cp -L "${deploy}/u-boot-${machine}.itb" "$tmpdir/"
 cp -L "$archive" "${tmpdir}/mfgtool-files-${machine}.tar.gz"
+cp -L "$operator" "${tmpdir}/program-imx95.sh"
+chmod 0755 "${tmpdir}/program-imx95.sh"
 tar -xzf "${tmpdir}/mfgtool-files-${machine}.tar.gz" -C "$tmpdir"
 
 bundle="${tmpdir}/${bundle_dir}"
@@ -93,6 +98,12 @@ fi
         "imx-boot-${machine}" \
         "u-boot-${machine}.itb" \
         "mfgtool-files-${machine}.tar.gz" \
+        "program-imx95.sh" \
+        "${bundle_dir}/uuu" \
+        "${bundle_dir}/full_image.uuu" \
+        "${bundle_dir}/verify_image.uuu" \
+        "${bundle_dir}/imx-boot-mfgtool" \
+        "${bundle_dir}/u-boot-mfgtool.itb" \
         > PROGRAMMING-SHA256SUMS
 )
 
@@ -100,5 +111,6 @@ mv "$tmpdir" "$output"
 tmpdir=
 
 printf 'Programming bundle ready: %s\n' "$output"
-printf 'Program (no read-back):\n  cd %s && sudo ./%s/uuu ./%s/full_image.uuu\n' "$output" "$bundle_dir" "$bundle_dir"
-printf 'Optional verification:\n  cd %s && sudo ./%s/uuu ./%s/verify_image.uuu\n' "$output" "$bundle_dir" "$bundle_dir"
+printf 'Preflight:\n  cd %s && ./program-imx95.sh check\n' "$output"
+printf 'Program (no read-back):\n  cd %s && ./program-imx95.sh program\n' "$output"
+printf 'Optional verification:\n  cd %s && ./program-imx95.sh verify\n' "$output"

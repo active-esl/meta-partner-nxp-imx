@@ -90,8 +90,12 @@ test-plan/prepare-imx95-programming-bundle.sh \
 The helper refuses recovery payloads in the production slots, checks the full
 Foundries WIC/dual-slot script and separate aligned verification script, runs
 both through bundled UUU's dry parser, writes `PROGRAMMING-SHA256SUMS`, and
-publishes the output atomically. Its final output gives separate program and
-optional read-back commands.
+publishes the output atomically. It also installs `program-imx95.sh`, which
+checks every production and recovery input, requires exactly one NXP MX95
+BootROM device (`1fc9:015c` or `1fc9:015d`), refuses a concurrent UUU process,
+and retains a timestamped UUU transcript. Use `check`, `program`, or the
+separate optional `verify` mode; normal programming never performs the slower
+read-back CRC.
 
 Completed-run evidence is committed under **`test-reports/<lmp-release>/`** (e.g.
 `test-reports/lmp-v96/`), keyed by LmP release line — the machine name is in each
