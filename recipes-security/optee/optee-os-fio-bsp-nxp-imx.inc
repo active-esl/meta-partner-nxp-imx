@@ -7,6 +7,7 @@ OPTEEMACHINE:imx8mn-ddr4-evk = "imx-mx8mnevk"
 OPTEEMACHINE:imx8mn-lpddr4-evk = "imx-mx8mnevk"
 OPTEEMACHINE:imx8qm-mek = "imx-mx8qmmek"
 OPTEEMACHINE:imx93-11x11-lpddr4x-evk = "imx-mx93evk"
+OPTEEMACHINE:mx95-nxp-bsp = "imx-mx95evk"
 
 # SoC Settings
 # https://github.com/OP-TEE/optee_os/issues/7327
@@ -23,6 +24,9 @@ EXTRA_OEMAKE:append:mx8qm-nxp-bsp = " \
     CFG_DT=y CFG_EXTERNAL_DTB_OVERLAY=y CFG_DT_ADDR=0x83200000 \
 "
 EXTRA_OEMAKE:append:mx93-nxp-bsp = " \
+    CFG_DT=y CFG_EXTERNAL_DTB_OVERLAY=y CFG_DT_ADDR=0x83200000 \
+"
+EXTRA_OEMAKE:append:mx95-nxp-bsp = " \
     CFG_DT=y CFG_EXTERNAL_DTB_OVERLAY=y CFG_DT_ADDR=0x83200000 \
 "
 

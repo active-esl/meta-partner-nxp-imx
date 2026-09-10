@@ -1,0 +1,199 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Igor Opaniuk <igor.opaniuk@foundries.io>
+Date: Wed, 10 Mar 2021 12:22:20 +0200
+Subject: [PATCH 16/17] [FIO internal] imx: secondary_boot: initial
+ implementation
+
+Add command for triggering SiP service provided by TF-A for
+setting/clearing SRC GPR10 PERSIST_SECONDARY_BOOT bit, that
+identifies which image will be used for boot after warm reset:
+primary(0) or secondary(1).
+
+For MX6 SoCs, use U-Boot wrappers to get/write PERSIST_SECONDARY_BOOT
+instead of doing SMC call to SM (SRC register is currently accessible
+from NW).
+
+Add imx_warm_reset command to use new generic wrappers for doing
+SMC calls.
+
+Add imx_is_closed command for reading out SEC_CONFIG[1]. It tests if
+a board is in either closed or open state.
+
+Signed-off-by: Igor Opaniuk <igor.opaniuk@foundries.io>
+Co-developed-by: Oleksandr Suvorov <oleksandr.suvorov@foundries.io>
+Signed-off-by: Oleksandr Suvorov <oleksandr.suvorov@foundries.io>
+(cherry picked from commit e0b3a53e4a2e6ae47de8f6e554537e50199d3cb7)
+---
+ arch/arm/mach-imx/Kconfig              |  10 +++
+ arch/arm/mach-imx/Makefile             |   1 +
+ arch/arm/mach-imx/imx_secondary_boot.c | 110 +++++++++++++++++++++++++
+ include/imx_sip.h                      |   4 +
+ 4 files changed, 125 insertions(+)
+ create mode 100644 arch/arm/mach-imx/imx_secondary_boot.c
+
+diff --git a/arch/arm/mach-imx/Kconfig b/arch/arm/mach-imx/Kconfig
+index 18bde867e3f..c2247d9329d 100644
+--- a/arch/arm/mach-imx/Kconfig
++++ b/arch/arm/mach-imx/Kconfig
+@@ -43,6 +43,16 @@ config IMX_BOOTAUX
+ 	help
+ 	  bootaux [addr] to boot auxiliary core.
+ 
++config CMD_SECONDARY_BOOT
++	bool "Use SiP service exposed by trusted firmware for redundant boot control"
++	default n
++	depends on ARCH_IMX8M || ARCH_MX6 || ARCH_MX7 || ARCH_MX7ULP || ARCH_IMX8 || ARCH_IMX8ULP || ARCH_IMX9
++	select AHAB_BOOT if ARCH_IMX8
++	help
++	  Command for triggering SiP service provided by TF-A for setting/clearing
++	  SRC GPR10 PERSIST_SECONDARY_BOOT bit, that identifies which image will be
++	  used for boot after warm reset: primary(0) or secondary(1)
++
+ config IMX_MODULE_FUSE
+ 	bool "i.MX Module Fuse"
+ 	depends on ARCH_MX6
+diff --git a/arch/arm/mach-imx/Makefile b/arch/arm/mach-imx/Makefile
+index 7477ab3155c..a2e3792706a 100644
+--- a/arch/arm/mach-imx/Makefile
++++ b/arch/arm/mach-imx/Makefile
+@@ -99,6 +99,7 @@ obj-$(CONFIG_CMD_QSPIHDR) += cmd_qspihdr.o
+ obj-$(CONFIG_CMD_FSPINAND) += cmd_fspinand.o
+ obj-$(CONFIG_CMD_QB) += cmd_qb.o
+ obj-$(CONFIG_IMX_VSERVICE) += imx_vservice.o
++obj-${CONFIG_CMD_SECONDARY_BOOT} += imx_secondary_boot.o
+ endif
+ 
+ ifeq ($(CONFIG_XPL_BUILD),y)
+diff --git a/arch/arm/mach-imx/imx_secondary_boot.c b/arch/arm/mach-imx/imx_secondary_boot.c
+new file mode 100644
+index 00000000000..52dada7a6c8
+--- /dev/null
++++ b/arch/arm/mach-imx/imx_secondary_boot.c
+@@ -0,0 +1,110 @@
++// SPDX-License-Identifier: GPL-2.0+
++/*
++ * Copyright (C) 2021 Foundries.io Ltd
++ */
++
++#include <asm/arch/sys_proto.h>
++#include <asm/io.h>
++#include <asm/mach-imx/sys_proto.h>
++#include <command.h>
++#include <elf.h>
++#include <env.h>
++#include <imx_sip.h>
++#include <linux/arm-smccc.h>
++#include <linux/compiler.h>
++#include <cpu_func.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++static int do_imx_secondary_boot(struct cmd_tbl *cmdtp, int flag,
++				 int argc, char * const argv[])
++{
++	u32 secondary = 0;
++	__maybe_unused struct arm_smccc_res res;
++	char secondary_val[2] = { 0 };
++	int ret;
++
++	/* If we just want to retrieve current value */
++	if (argc == 1) {
++		if (CONFIG_IS_ENABLED(ARCH_IMX8M)) {
++			arm_smccc_smc(IMX_SIP_SRC,
++				      IMX_SIP_SRC_IS_SECONDARY_BOOT, 0, 0,
++				      0, 0, 0, 0, &res);
++			secondary = res.a0;
++		} else {
++			secondary = boot_mode_getprisec();
++		}
++
++		printf("Secondary boot bit = %d\n", secondary);
++		ret = snprintf(secondary_val, sizeof(secondary_val),
++			       "%d", secondary);
++		if (ret < 0)
++			return CMD_RET_FAILURE;
++
++		ret = env_set("fiovb.is_secondary_boot", secondary_val);
++		if (ret)
++			return CMD_RET_FAILURE;
++
++		return CMD_RET_SUCCESS;
++	}
++
++	secondary = simple_strtoul(argv[1], NULL, 10);
++
++	if (!(secondary == 0 || secondary == 1))
++		return CMD_RET_USAGE;
++
++	if (CONFIG_IS_ENABLED(ARCH_IMX8M)) {
++		arm_smccc_smc(IMX_SIP_SRC, IMX_SIP_SRC_SET_SECONDARY_BOOT,
++			      secondary, 0, 0, 0, 0, 0, &res);
++	} else {
++		boot_mode_enable_secondary(secondary);
++	}
++
++	return CMD_RET_SUCCESS;
++}
++
++U_BOOT_CMD(
++	imx_secondary_boot, CONFIG_SYS_MAXARGS, 1, do_imx_secondary_boot,
++	"Get/Set PERSIST_SECONDARY_BOOT bit",
++	"[0|1]\n"
++	"   no param  - get current bit value\n"
++	"   0 - set primary image\n"
++	"   1 - set secondary image\n"
++);
++
++static int do_imx_is_closed(struct cmd_tbl *cmdtp, int flag,
++			    int argc, char * const argv[])
++{
++	int ret;
++
++	if (boot_mode_is_closed()) {
++		printf("Board is in closed state\n");
++
++		ret = env_set("board_is_closed", "1");
++		if (ret)
++			return CMD_RET_FAILURE;
++	} else {
++		printf("Board is in open state\n");
++	}
++
++	return CMD_RET_SUCCESS;
++}
++
++U_BOOT_CMD(
++	imx_is_closed, CONFIG_SYS_MAXARGS, 1, do_imx_is_closed,
++	"Check if the board is closed", ""
++);
++
++static int do_warm_reset(struct cmd_tbl *cmdtp, int flag,
++			 int argc, char * const argv[])
++{
++	arm_smccc_smc(IMX_SIP_WARM_RESET, 0, 0, 0, 0, 0, 0, 0, NULL);
++
++	return CMD_RET_SUCCESS;
++}
++
++U_BOOT_CMD(
++	imx_warm_reset, CONFIG_SYS_MAXARGS, 1, do_warm_reset,
++	"Assert WDOG Software Reset Signal (internal reset) via TF-A",
++	"\n"
++);
+diff --git a/include/imx_sip.h b/include/imx_sip.h
+index 65a7dbfea4d..8038275d908 100644
+--- a/include/imx_sip.h
++++ b/include/imx_sip.h
+@@ -19,8 +19,12 @@
+ #define	IMX_SIP_SRC_MCU_RESET_ADDR_SET	0x03
+ #define	IMX_SIP_SRC_MCU_PREP		0x04
+ #define	IMX_SIP_SRC_MCU_PREPED		0x05
++#define IMX_SIP_SRC_SET_SECONDARY_BOOT	0x10
++#define IMX_SIP_SRC_IS_SECONDARY_BOOT	0x11
+ 
+ #define IMX_SIP_FIPS_CONFIG		0xC200000D
+ #define IMX_SIP_FIPS_CONFIG_SET		0x1
+ 
++#define IMX_SIP_WARM_RESET	0xC2000010
++
+ #endif
