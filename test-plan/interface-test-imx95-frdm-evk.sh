@@ -93,6 +93,12 @@ else
     row "FRDM provider dependency chain" "no retained target-2901 deferred probes" PASS; P
 fi
 present /dev/tee0 "OP-TEE client device"
+root_kib=$(df -Pk / 2>/dev/null | awk 'END { print $2 }')
+if [ "${root_kib:-0}" -ge 8388608 ]; then
+    row "Expanded OSTree root filesystem" "${root_kib} KiB" PASS; P
+else
+    row "Expanded OSTree root filesystem" "${root_kib:-0} KiB (expected at least 8 GiB)" FAIL; F
+fi
 
 header "2. Foundries update and container surfaces"
 conditional "OSTree deployment" 1 "test -d /ostree/deploy && ostree admin status"
