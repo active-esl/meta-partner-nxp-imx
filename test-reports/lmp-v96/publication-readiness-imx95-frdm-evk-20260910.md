@@ -8,7 +8,7 @@
   `176928480302c8e3b91348e07feecd3b2aa5dc83`
 - Curated implementation head before this metadata record:
   `review/imx95-frdm-nxp-6.12` at
-  `a9dd237ba01f9042e318be07dfef35f881fb74fd`
+  `4af6181c7ab4ffbc0e319c516d83d29a35d5f3f6`
 - Development implementation head before its matching metadata record:
   `feature/imx95-frdm-nxp-6.12` at
   `155f11fd62a7470206d4d48a770f25834f6a7257`
@@ -63,10 +63,14 @@ Before triggering the production Foundries build:
    commit SHAs in the production Factory manifest;
 3. run KAS parse/component gates and a clean product build from those remote
    inputs;
-4. bind the resulting WIC and mfgtools archive to that source lock; and
+4. reproduce the now-green matched WIC and mfgtools archive from that remote
+   source lock; and
 5. complete programming, boot, rollback and requirement-by-requirement board
    acceptance.
 
 No upstream Foundries PR or production Factory build has been created. Those
 are later gates; the Active ESL partner fork and its two working branches are
-now published and ready to be consumed by the product source lock.
+now published and ready to be consumed by the product source lock. Local r8
+product plus r15 recovery artifacts pass the combined 48-check gate; this is
+strong local build evidence, not yet a remotely reproducible Factory source
+lock or hardware acceptance result.
