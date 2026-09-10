@@ -56,6 +56,15 @@ need_package() {
     fi
 }
 
+reject_package() {
+    package=$1
+    if [ -s "$manifest" ] && awk -v p="$package" '$1 == p { found=1 } END { exit !found }' "$manifest"; then
+        bad "manifest unexpectedly selects $package"
+    else
+        ok "manifest does not select conflicting $package"
+    fi
+}
+
 need_archive_member() {
     member=$1
     if tar -tzf "$mfgtool_archive" 2>/dev/null | grep -Fqx "$bundle_dir/$member"; then
@@ -104,13 +113,18 @@ done
 
 if [ "$product" -eq 1 ]; then
     for package in \
+        gstreamer1.0-plugins-bad-kms \
+        mlanutl \
+        otbr-iwxxx \
         packagegroup-nxp-otbr \
+        tayga \
         waydroid \
         weston \
         zigbee-rcp-apps \
         zigbee-rcp-sdk; do
         need_package "$package"
     done
+    reject_package otbr
 fi
 
 if [ "$mfgtool" -eq 1 ]; then
