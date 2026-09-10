@@ -35,7 +35,6 @@ SRC_URI += " \
     file://0015-FIO-extra-boot-dont-enable-MD5-SHA1-if-SIGNATURE_STR.patch \
     file://0016-FIO-internal-imx-secondary_boot-initial-implementati.patch \
     file://0017-imx9-add-Foundries-boot-state-helpers-for-SCMI-firmw.patch \
-    file://0018-FIO-fastboot-support-overlapping-imx95-boot-slots.patch \
 "
 
 DEFAULT_PREFERENCE = "-1"

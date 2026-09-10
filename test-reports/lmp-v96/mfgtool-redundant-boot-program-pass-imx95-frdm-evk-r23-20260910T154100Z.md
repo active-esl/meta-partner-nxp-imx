@@ -1,4 +1,9 @@
-# FRDM-iMX95 LmP v96 mfgtool redundant-boot programming record (r23)
+# FRDM-iMX95 mfgtool redundant-boot record (r23, superseded/unsafe)
+
+> Superseded on 2026-09-10. Hardware evidence proved that overlaying
+> `u-boot.itb` at block `0x300` in either eMMC boot hardware partition can
+> corrupt the AHAB container. This is a negative learning record, not a valid
+> programming recipe.
 
 Date: 2026-09-10
 
@@ -116,4 +121,3 @@ Programming-log SHA-256:
   the MX95 BootROM identity to certify the complete generated operator flow;
   this r23 run certifies the RAM-fastboot and persistent-write portion.
 - Keep optional read-back as a separate operator action.
-

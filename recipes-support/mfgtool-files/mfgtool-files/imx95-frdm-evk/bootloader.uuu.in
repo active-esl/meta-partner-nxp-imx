@@ -1,8 +1,9 @@
 uuu_version 1.5.201
 
 # Recovery-boot the board using the matched flash_all container, then replace
-# only the two redundant Foundries production boot-firmware sets. The WIC user
-# area and its OSTree/root filesystem are deliberately untouched.
+# only the production boot firmware. The WIC partitions and OSTree/root
+# filesystem are deliberately untouched; the raw FIT slot precedes the GPT
+# partitions in the eMMC user area.
 SDP: boot -f imx-boot-mfgtool
 SDPS: boot -f imx-boot-mfgtool
 
@@ -18,34 +19,32 @@ FB: delay 5000
 FB: ucmd setenv fastboot_dev mmc
 FB: ucmd setenv emmc_dev 0
 FB: ucmd setenv mmcdev 0
+FB: ucmd setenv loadaddr 0x92800000
 FB: ucmd mmc dev ${mmcdev} 0
 
 # Assert the live recovery layout and both payload sizes before the first write.
 FB: getvar partition-size:bootloader
 FB: getvar partition-type:bootloader
-FB: getvar partition-size:bootloader2
-FB: getvar partition-type:bootloader2
 FB: getvar partition-size:bootloader_s
 FB: getvar partition-type:bootloader_s
-FB: getvar partition-size:bootloader2_s
-FB: getvar partition-type:bootloader2_s
 FB: if @PARTITION-SIZE:BOOTLOADER@ != 0X400000 then ucmd false
 FB: if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false
-FB: if @PARTITION-SIZE:BOOTLOADER2@ != 0X3A0000 then ucmd false
-FB: if @PARTITION-TYPE:BOOTLOADER2@ != RAW then ucmd false
 FB: if @PARTITION-SIZE:BOOTLOADER_S@ != 0X400000 then ucmd false
 FB: if @PARTITION-TYPE:BOOTLOADER_S@ != RAW then ucmd false
-FB: if @PARTITION-SIZE:BOOTLOADER2_S@ != 0X3A0000 then ucmd false
-FB: if @PARTITION-TYPE:BOOTLOADER2_S@ != RAW then ucmd false
 FB: download -f ../imx-boot-@@MACHINE@@
 FB: ucmd if itest ${filesize} -le 400000; then true; else false; fi
 FB: download -f ../u-boot-@@MACHINE@@.itb
-FB: ucmd if itest ${filesize} -le 3a0000; then true; else false; fi
+FB: ucmd if itest ${filesize} -le 1c0000; then true; else false; fi
 
 FB: flash bootloader ../imx-boot-@@MACHINE@@
-FB: flash bootloader2 ../u-boot-@@MACHINE@@.itb
 FB: flash bootloader_s ../imx-boot-@@MACHINE@@
-FB: flash bootloader2_s ../u-boot-@@MACHINE@@.itb
+# `download` sets filesize. Round it up to 512-byte blocks and place the FIT
+# where CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR expects it in the user area.
+FB: download -f ../u-boot-@@MACHINE@@.itb
+FB: ucmd setexpr fit_blkcnt ${filesize} + 0x1ff
+FB: ucmd setexpr fit_blkcnt ${fit_blkcnt} / 0x200
+FB: ucmd mmc dev ${mmcdev} 0
+FB: ucmd mmc write ${loadaddr} 0x300 ${fit_blkcnt}
 FB: ucmd if env exists emmc_ack; then ; else setenv emmc_ack 0; fi;
 FB: ucmd mmc partconf 0 ${emmc_ack} 1 0
 FB: done

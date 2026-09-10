@@ -1,6 +1,6 @@
 #!/bin/sh
-# Reject a production U-Boot configuration that cannot consume the Foundries
-# bootloader2 FIT layout programmed into eMMC boot0/boot1.
+# Reject a U-Boot configuration that cannot consume the i.MX95 split boot
+# layout: intact AHAB container in boot0 and U-Boot FIT in user-area LBA 0x300.
 
 set -u
 
@@ -24,6 +24,17 @@ require_enabled() {
     fi
 }
 
+require_disabled() {
+    symbol=$1
+    if grep -Fqx "# ${symbol} is not set" "$config"; then
+        printf 'PASS: %s is disabled\n' "$symbol"
+        pass=$((pass + 1))
+    else
+        printf 'FAIL: %s is not disabled\n' "$symbol" >&2
+        fail=$((fail + 1))
+    fi
+}
+
 require_value() {
     assignment=$1
     if grep -Fqx "$assignment" "$config"; then
@@ -39,7 +50,7 @@ require_enabled CONFIG_SPL_FIT
 require_enabled CONFIG_SPL_LOAD_FIT
 require_enabled CONFIG_SPL_MMC
 require_enabled CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
-require_enabled CONFIG_SUPPORT_EMMC_BOOT
+require_disabled CONFIG_SUPPORT_EMMC_BOOT
 require_value CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR=0x300
 
 printf '\nResult: %s pass, %s fail\n' "$pass" "$fail"

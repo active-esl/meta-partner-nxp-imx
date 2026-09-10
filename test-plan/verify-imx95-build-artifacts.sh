@@ -208,30 +208,24 @@ if [ "$mfgtool" -eq 1 ]; then
         if grep -Fq 'getvar partition-size:all' "$full_script" &&
            grep -Fq 'getvar partition-type:all' "$full_script" &&
            grep -Fq 'getvar partition-size:bootloader' "$full_script" &&
-           grep -Fq 'getvar partition-size:bootloader2' "$full_script" &&
            grep -Fq 'getvar partition-size:bootloader_s' "$full_script" &&
-           grep -Fq 'getvar partition-size:bootloader2_s' "$full_script" &&
            grep -Fq 'if @PARTITION-SIZE:BOOTLOADER@ != 0X400000 then ucmd false' "$full_script" &&
            grep -Fq 'if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false' "$full_script" &&
-           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER2@ != 0X3A0000 then ucmd false' "$full_script" &&
-           grep -Fq 'if @PARTITION-TYPE:BOOTLOADER2@ != RAW then ucmd false' "$full_script" &&
            grep -Fq 'if @PARTITION-SIZE:BOOTLOADER_S@ != 0X400000 then ucmd false' "$full_script" &&
            grep -Fq 'if @PARTITION-TYPE:BOOTLOADER_S@ != RAW then ucmd false' "$full_script" &&
-           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER2_S@ != 0X3A0000 then ucmd false' "$full_script" &&
-           grep -Fq 'if @PARTITION-TYPE:BOOTLOADER2_S@ != RAW then ucmd false' "$full_script" &&
            grep -Fq 'download -f ../imx-boot-imx95-frdm-evk' "$full_script" &&
            grep -Fq 'itest ${filesize} -le 400000' "$full_script" &&
            grep -Fq 'download -f ../u-boot-imx95-frdm-evk.itb' "$full_script" &&
-           grep -Fq 'itest ${filesize} -le 3a0000' "$full_script" &&
+           grep -Fq 'itest ${filesize} -le 1c0000' "$full_script" &&
            grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$full_script" &&
            grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$full_script" &&
-           grep -Fq 'flash bootloader2 ../u-boot-imx95-frdm-evk.itb' "$full_script" &&
            grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$full_script" &&
-           grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$full_script"; then
-            last_preflight=$(grep -nF 'itest ${filesize} -le 3a0000' "$full_script" | tail -n 1 | cut -d: -f1)
+           grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$full_script" &&
+           ! grep -Fq 'flash bootloader2 ' "$full_script"; then
+            last_preflight=$(grep -nF 'itest ${filesize} -le 1c0000' "$full_script" | tail -n 1 | cut -d: -f1)
             first_write=$(grep -nF 'flash -raw2sparse all ' "$full_script" | head -n 1 | cut -d: -f1)
             if [ -n "$last_preflight" ] && [ -n "$first_write" ] && [ "$last_preflight" -lt "$first_write" ]; then
-                ok "full_image.uuu asserts live slot and payload sizes before sparse-flashing the WIC plus both boot sets"
+                ok "full_image.uuu checks payloads before writing WIC, intact containers, and user-area FIT"
             else
                 bad "full_image.uuu performs a persistent write before completing its i.MX95 preflight"
             fi
@@ -247,11 +241,11 @@ if [ "$mfgtool" -eq 1 ]; then
         fi
 
         if grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$bootloader_script" &&
-           grep -Fq 'flash bootloader2 ../u-boot-imx95-frdm-evk.itb' "$bootloader_script" &&
            grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bootloader_script" &&
-           grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$bootloader_script" &&
+           grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$bootloader_script" &&
+           ! grep -Fq 'flash bootloader2 ' "$bootloader_script" &&
            ! grep -Fq 'flash -raw2sparse all ' "$bootloader_script"; then
-            ok "bootloader.uuu updates both redundant boot sets without writing the WIC user area"
+            ok "bootloader.uuu updates intact containers and the raw user-area FIT without writing WIC partitions"
         else
             bad "bootloader.uuu does not retain the boot-firmware-only contract"
         fi

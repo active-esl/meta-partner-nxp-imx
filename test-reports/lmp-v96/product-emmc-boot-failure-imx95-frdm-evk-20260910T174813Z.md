@@ -1,4 +1,8 @@
-# FRDM-IMX95 production eMMC boot failure
+# FRDM-IMX95 production eMMC boot failure (superseded diagnosis)
+
+> Superseded on 2026-09-10 by the target-2901 comparison and physical A/B test
+> in `product-emmc-boot-layout-ab-test-imx95-frdm-evk-20260910.md`. The FIT
+> belongs in the user area, not boot0; retain this only as a negative record.
 
 - Result: **FAIL — production SPL looked for the separate Foundries U-Boot FIT
   in the eMMC user area instead of the active boot hardware partition**
