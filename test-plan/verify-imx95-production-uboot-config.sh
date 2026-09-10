@@ -52,6 +52,7 @@ require_enabled CONFIG_SPL_MMC
 require_enabled CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_USE_SECTOR
 require_disabled CONFIG_SUPPORT_EMMC_BOOT
 require_value CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR=0x300
+require_value CONFIG_SPL_SYS_MALLOC_SIZE=0x400000
 
 printf '\nResult: %s pass, %s fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
