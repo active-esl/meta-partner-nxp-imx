@@ -168,4 +168,5 @@ tmpdir=
 printf 'Programming bundle ready: %s\n' "$output"
 printf 'Preflight:\n  cd %s && ./program-imx95.sh check\n' "$output"
 printf 'Program (no read-back):\n  cd %s && ./program-imx95.sh program\n' "$output"
+printf 'Boot firmware only (retain WIC/rootfs):\n  cd %s && ./program-imx95.sh bootloader\n' "$output"
 printf 'Optional verification:\n  cd %s && ./program-imx95.sh verify\n' "$output"
