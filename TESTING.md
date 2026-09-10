@@ -61,6 +61,18 @@ checks are skipped by default. Plan section 6.2 gives the exact invocation.
 
 ## Artifacts
 
+For FRDM-IMX95, validate a completed deploy directory before programming:
+
+```sh
+test-plan/verify-imx95-build-artifacts.sh \
+  build/tmp/deploy/images/imx95-frdm-evk --product
+```
+
+Omit `--product` for the standalone partner-layer Factory gate. Product mode
+also requires Weston, Waydroid, both Zigbee RCP recipes and the NXP OTBR
+package group in the image manifest. The verifier prints SHA-256 fingerprints
+for the publishable WIC, production boot container, U-Boot FIT and manifest.
+
 Completed-run evidence is committed under **`test-reports/<lmp-release>/`** (e.g.
 `test-reports/lmp-v96/`), keyed by LmP release line — the machine name is in each
 filename, so artifacts sit flat under the release folder. `test-reports/README.md`
