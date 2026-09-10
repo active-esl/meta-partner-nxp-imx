@@ -8,8 +8,11 @@ header:
 distro: lmp-mfgtool
 target: mfgtool-files
 
-local_conf_header:
-  imx95-partner-mfgtool-layer-scope: |
-    # Recovery does not consume the optional NXP Thread/Zigbee product layers.
-    # Mask their policy appends rather than weakening dangling-append checks.
-    BBMASK += "recipes-connectivity/(otbr|zigbee-rcp-apps|zigbee-rcp-sdk)/"
+repos:
+  # These NXP product layers append packages to IMAGE_INSTALL globally. They
+  # are required by the normal product graph but must not leak Thread/Zigbee
+  # applications into the deliberately small recovery initramfs.
+  meta-nxp-connectivity:
+    layers:
+      meta-nxp-zigbee-rcp: disabled
+      meta-nxp-otbr: disabled

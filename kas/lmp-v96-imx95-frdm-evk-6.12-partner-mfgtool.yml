@@ -8,9 +8,11 @@ header:
 distro: lmp-mfgtool
 target: mfgtool-files
 
-local_conf_header:
-  imx95-v96-partner-mfgtool-layer-scope: |
-    # The shared graph pins NXP connectivity for the product, but recovery
-    # does not consume its Thread/Zigbee policy. Mask only the partner appends
-    # rather than weakening dangling-append checks globally.
-    BBMASK += "recipes-connectivity/(otbr|zigbee-rcp-apps|zigbee-rcp-sdk)/"
+repos:
+  # These NXP product layers append packages to IMAGE_INSTALL globally. They
+  # are required by the normal product graph but must not leak Thread/Zigbee
+  # applications into the deliberately small recovery initramfs.
+  meta-nxp-connectivity:
+    layers:
+      meta-nxp-zigbee-rcp: disabled
+      meta-nxp-otbr: disabled
