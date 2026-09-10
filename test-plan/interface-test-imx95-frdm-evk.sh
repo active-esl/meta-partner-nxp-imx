@@ -1,0 +1,238 @@
+#!/bin/sh
+# Non-destructive FRDM-IMX95 interface evidence collector.
+# Run as root, or as the fio user with passwordless sudo for the inspected commands.
+
+set -u
+
+require_hdmi=0
+require_waydroid=0
+require_wifi=0
+require_bluetooth=0
+require_thread=0
+require_eth1=0
+
+usage() {
+    echo "usage: $0 [--require-hdmi] [--require-waydroid] [--require-wifi] [--require-bluetooth] [--require-thread] [--require-second-ethernet]"
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --require-hdmi) require_hdmi=1 ;;
+        --require-waydroid) require_waydroid=1 ;;
+        --require-wifi) require_wifi=1 ;;
+        --require-bluetooth) require_bluetooth=1 ;;
+        --require-thread) require_thread=1 ;;
+        --require-second-ethernet) require_eth1=1 ;;
+        -h|--help) usage; exit 0 ;;
+        *) usage >&2; exit 2 ;;
+    esac
+    shift
+done
+
+if [ "$(id -u)" -eq 0 ]; then
+    SUDO=""
+elif command -v sudo >/dev/null 2>&1; then
+    SUDO="sudo"
+else
+    echo "Run as root or install sudo" >&2
+    exit 2
+fi
+
+pass=0 fail=0 info=0 skip=0
+P() { pass=$((pass + 1)); }
+F() { fail=$((fail + 1)); }
+I() { info=$((info + 1)); }
+S() { skip=$((skip + 1)); }
+row() { printf '| %s | %s | **%s** |\n' "$1" "$2" "$3"; }
+header() { printf '\n## %s\n\n| Check | Evidence | Result |\n|---|---|---|\n' "$1"; }
+present() {
+    if [ -e "$1" ]; then row "$2" "\`$1\`" PASS; P; else row "$2" "missing: \`$1\`" FAIL; F; fi
+}
+conditional() {
+    # conditional DESCRIPTION REQUIRED(0/1) SHELL-COMMAND
+    desc=$1 required=$2 command=$3
+    if sh -c "$command" >/dev/null 2>&1; then
+        row "$desc" "detected" PASS; P
+    elif [ "$required" -eq 1 ]; then
+        row "$desc" "not detected (required for this run)" FAIL; F
+    else
+        row "$desc" "not detected / peripheral not fitted" SKIP; S
+    fi
+}
+
+printf '# FRDM-IMX95 interface test\n\n'
+# shellcheck disable=SC2016
+printf -- '- UTC: `%s`\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+# shellcheck disable=SC2016
+printf -- '- Host: `%s`\n' "$(hostname)"
+# shellcheck disable=SC2016
+printf -- '- Kernel: `%s`\n' "$(uname -r)"
+
+header "1. Platform and boot baseline"
+model=$(tr -d '\000' </proc/device-tree/model 2>/dev/null || true)
+case "$model" in
+    *FRDM-IMX95*|*FRDM*i.MX*95*|*i.MX*95*FRDM*) row "Device-tree model" "\`$model\`" PASS; P ;;
+    *) row "Device-tree model" "\`${model:-unavailable}\`" FAIL; F ;;
+esac
+case "$(uname -r)" in
+    6.12*) row "Aligned Linux baseline" "\`$(uname -r)\`" PASS; P ;;
+    *) row "Aligned Linux baseline" "\`$(uname -r)\` (expected 6.12.x)" FAIL; F ;;
+esac
+mt=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
+if [ "${mt:-0}" -ge 7000000 ]; then row "8 GiB LPDDR4X" "MemTotal=${mt} kB" PASS; P; else row "8 GiB LPDDR4X" "MemTotal=${mt:-0} kB" FAIL; F; fi
+if $SUDO journalctl -k -b 0 2>/dev/null | grep -qiE 'kernel panic|oops:|watchdog.*reset|Unhandled fault'; then
+    row "Fatal kernel faults this boot" "fault signature found in journal" FAIL; F
+else
+    row "Fatal kernel faults this boot" "none found" PASS; P
+fi
+provider_pattern='(usdhc3-pwrseq|42850000\.mmc|42860000\.mmc|428b0000\.mmc|regulator-(ext-5v|m2-pwr|m2-mkey-pwr|usdhc2|usdhc3|vbus)|42530000\.i2c|42540000\.i2c|44350000\.i2c|438[1245]0000\.gpio|42590000\.serial|44380000\.serial|4c200000\.usb): deferred probe pending'
+if $SUDO journalctl -k -b 0 2>/dev/null | grep -Eq "${provider_pattern}"; then
+    pending=$($SUDO journalctl -k -b 0 2>/dev/null | grep -Eo "${provider_pattern}" | paste -sd, -)
+    row "FRDM provider dependency chain" "unresolved: ${pending}" FAIL; F
+else
+    row "FRDM provider dependency chain" "no retained target-2901 deferred probes" PASS; P
+fi
+present /dev/tee0 "OP-TEE client device"
+root_kib=$(df -Pk / 2>/dev/null | awk 'END { print $2 }')
+if [ "${root_kib:-0}" -ge 8388608 ]; then
+    row "Expanded OSTree root filesystem" "${root_kib} KiB" PASS; P
+else
+    row "Expanded OSTree root filesystem" "${root_kib:-0} KiB (expected at least 8 GiB)" FAIL; F
+fi
+
+header "2. Foundries update and container surfaces"
+conditional "OSTree deployment" 1 "test -d /ostree/deploy && ostree admin status"
+conditional "U-Boot environment" 1 "$SUDO fw_printenv bootcount"
+conditional "Docker daemon" 1 "$SUDO docker info"
+if systemctl list-unit-files aktualizr-lite.service >/dev/null 2>&1; then
+    row "aktualizr-lite unit" "installed; registration state is product-specific" PASS; P
+else
+    row "aktualizr-lite unit" "missing" FAIL; F
+fi
+
+header "3. eMMC and microSD"
+emmc=""
+for b in /sys/block/mmcblk[0-9]*; do
+    [ -d "$b" ] || continue
+    [ "$(cat "$b/device/type" 2>/dev/null)" = MMC ] && { emmc=$b; break; }
+done
+if [ -n "$emmc" ]; then row "32 GB eMMC" "\`/dev/$(basename "$emmc")\`" PASS; P; else row "eMMC" "not found" FAIL; F; fi
+mmchosts=$(find /sys/class/mmc_host -mindepth 1 -maxdepth 1 -type l 2>/dev/null | wc -l)
+if [ "$mmchosts" -ge 3 ]; then row "USDHC hosts" "$mmchosts (eMMC, microSD, IW612 SDIO)" PASS; P; else row "USDHC hosts" "$mmchosts (expected at least 3)" FAIL; F; fi
+conditional "Inserted microSD card" 0 "for b in /sys/block/mmcblk[0-9]*; do test -d \"\$b\" || continue; test \"\$(cat \"\$b/device/type\" 2>/dev/null)\" = SD && exit 0; done; exit 1"
+
+header "4. Display, GPU and Waydroid"
+conditional "DRM card" 1 "find /dev/dri -maxdepth 1 -name 'card*' | grep -q ."
+connector=""
+for c in /sys/class/drm/card*-HDMI-A-*/status; do [ -f "$c" ] && { connector=$c; break; }; done
+if [ -n "$connector" ]; then
+    state=$(cat "$connector")
+    mode=$(head -1 "$(dirname "$connector")/modes" 2>/dev/null || true)
+    if [ "$state" = connected ]; then row "HDMI monitor" "\`$state\`, mode \`${mode:-unknown}\`" PASS; P
+    elif [ "$require_hdmi" -eq 1 ]; then row "HDMI monitor" "\`$state\` (required)" FAIL; F
+    else row "HDMI monitor" "\`$state\`" INFO; I; fi
+elif [ "$require_hdmi" -eq 1 ]; then row "HDMI DRM connector" "absent (required)" FAIL; F
+else row "HDMI DRM connector" "absent" INFO; I; fi
+conditional "Weston compositor" "$require_hdmi" "systemctl is-active --quiet weston"
+conditional "DRM render node" "$require_hdmi" "test -e /dev/dri/renderD128"
+waydroid_cmd="command -v waydroid >/dev/null 2>&1 || systemctl list-unit-files 2>/dev/null | grep -q '^waydroid-container'"
+conditional "Waydroid userspace/container" "$require_waydroid" "$waydroid_cmd"
+conditional "Waydroid image provisioning" "$require_waydroid" "systemctl is-active --quiet waydroid-image-provision.service"
+conditional "Waydroid FRDM container" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-container.service"
+conditional "Waydroid FRDM session" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-session.service"
+conditional "Waydroid full-screen UI" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-ui.service"
+conditional "Android boot complete" "$require_waydroid" "timeout 20 waydroid shell getprop sys.boot_completed 2>/dev/null | grep -qx 1"
+if [ "$require_waydroid" -eq 1 ]; then
+    release_config=/usr/share/waydroid-extra/waydroid-image-release.conf
+    installed_release=/etc/waydroid-extra/images/release.conf
+    if [ -r "$release_config" ] && [ -r "$installed_release" ] &&
+       [ -s /etc/waydroid-extra/images/system.img ] &&
+       [ -s /etc/waydroid-extra/images/vendor.img ] &&
+       cmp -s "$release_config" "$installed_release"; then
+        # The release file is root-owned product metadata with immutable image
+        # hashes. Validate the persistent pair, not just provisioning's exit.
+        # shellcheck disable=SC1090
+        . "$release_config"
+        system_sum=$(sha256sum /etc/waydroid-extra/images/system.img | awk '{print $1}')
+        vendor_sum=$(sha256sum /etc/waydroid-extra/images/vendor.img | awk '{print $1}')
+        if [ "$system_sum" = "${WAYDROID_SYSTEM_SHA256:-}" ] &&
+           [ "$vendor_sum" = "${WAYDROID_VENDOR_SHA256:-}" ]; then
+            row "Pinned Waydroid image pair" "\`${WAYDROID_IMAGE_RELEASE:-unnamed}\`, hashes match" PASS; P
+        else
+            row "Pinned Waydroid image pair" "persistent image hash mismatch" FAIL; F
+        fi
+    else
+        row "Pinned Waydroid image pair" "release marker or persistent image missing" FAIL; F
+    fi
+fi
+conditional "Waydroid network bridge" "$require_waydroid" "test -s /run/waydroid-lxc/network_up && ip link show waydroid0"
+conditional "Android routed network" "$require_waydroid" "timeout 20 waydroid shell ping -c 1 -W 5 1.1.1.1"
+conditional "Android DNS" "$require_waydroid" "timeout 20 waydroid shell ping -c 1 -W 5 example.com"
+conditional "Android validated Internet/HTTPS" "$require_waydroid" "timeout 20 waydroid shell dumpsys connectivity 2>/dev/null | grep -q VALIDATED"
+if [ -d /dev/binderfs ] || [ -e /dev/binder ]; then row "Android binder surface" "present" PASS; P
+elif [ "$require_waydroid" -eq 1 ]; then row "Android binder surface" "absent" FAIL; F
+else row "Android binder surface" "absent; Waydroid not required for this image" SKIP; S; fi
+
+header "5. Ethernet and wireless"
+for iface in end0 end1; do
+    required=0; [ "$iface" = end0 ] && required=1; [ "$iface" = end1 ] && required=$require_eth1
+    if ip link show "$iface" >/dev/null 2>&1; then
+        carrier=$(cat "/sys/class/net/$iface/carrier" 2>/dev/null || echo 0)
+        if [ "$carrier" = 1 ]; then row "$iface NETC Ethernet" "carrier up" PASS; P
+        elif [ "$required" -eq 1 ]; then row "$iface NETC Ethernet" "present, no carrier" FAIL; F
+        else row "$iface NETC Ethernet" "present, no cable" INFO; I; fi
+    elif [ "$required" -eq 1 ]; then row "$iface NETC Ethernet" "interface missing" FAIL; F
+    else row "$iface NETC Ethernet" "interface missing" INFO; I; fi
+done
+wifi_if=$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2; exit}')
+if [ -n "$wifi_if" ]; then
+    modules=$(lsmod | awk '$1=="moal" || $1=="mlan"{print $1}' | paste -sd, -)
+    row "IW612 Wi-Fi" "\`$wifi_if\`, modules \`${modules:-built-in/unknown}\`" PASS; P
+elif [ "$require_wifi" -eq 1 ]; then row "IW612 Wi-Fi" "no wireless interface" FAIL; F
+else row "IW612 Wi-Fi" "no interface; module/card not required for this run" SKIP; S; fi
+conditional "IW612 Bluetooth firmware" "$require_bluetooth" "test -s /lib/firmware/nxp/uartspi_n61x_v1.bin.se || test -s /usr/lib/firmware/nxp/uartspi_n61x_v1.bin.se"
+conditional "Bluetooth HCI" "$require_bluetooth" "test -d /sys/class/bluetooth/hci0"
+conditional "Bluetooth adapter powered" "$require_bluetooth" "bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'"
+if $SUDO journalctl -k -b 0 2>/dev/null | grep -i btnxpuart | grep -qiE 'failed|error|timeout|timed out|frame reassembly'; then
+    if [ "$require_bluetooth" -eq 1 ]; then
+        row "NXP Bluetooth driver health" "btnxpuart error/timeout signature found" FAIL; F
+    else
+        row "NXP Bluetooth driver health" "btnxpuart error/timeout signature found" INFO; I
+    fi
+else
+    row "NXP Bluetooth driver health" "no btnxpuart error/timeout signature" PASS; P
+fi
+conditional "IW612 Spinel SPI transport" 1 "find /dev -maxdepth 1 -name 'spidev*' | grep -q ."
+conditional "NXP IW612 OpenThread tools" "$require_thread" "command -v otbr-agent-iwxxx >/dev/null 2>&1 && command -v ot-ctl-iwxxx >/dev/null 2>&1"
+conditional "OpenThread wpan0 interface" "$require_thread" "ip link show wpan0"
+
+header "6. USB, PCIe, CAN and audio"
+conditional "USB 2.0 root hub" 1 "lsusb | grep -q 'root hub'"
+conditional "USB 3.x controller" 1 "find /sys/bus/platform/drivers -maxdepth 2 -type l 2>/dev/null | grep -qE 'dwc3|xhci'"
+conditional "M.2 Key-M PCIe link/device" 0 "lspci 2>/dev/null | grep -q ."
+can_count=$(ip -details link show type can 2>/dev/null | grep -c '^[0-9]')
+if [ "$can_count" -ge 2 ]; then row "CAN controllers" "$can_count interfaces" PASS; P
+else row "CAN controllers" "$can_count interfaces (transceiver loopback requires bench wiring)" INFO; I; fi
+cards=$(find /sys/class/sound -maxdepth 1 -name 'card*' 2>/dev/null | wc -l)
+if [ "$cards" -ge 2 ]; then row "MQS/PDM/HDMI audio cards" "$cards cards" PASS; P; else row "Audio cards" "$cards" FAIL; F; fi
+
+header "7. Board management and sensors"
+conditional "External PCF2131 RTC" 1 "grep -qi pcf2131 /sys/class/rtc/rtc*/name"
+conditional "GPIO expander PCAL6524" 1 "find /sys/bus/i2c/drivers -path '*/pca953x/*-*' -type l | grep -q ."
+conditional "PCA963x LED controller" 1 "find /sys/class/leds -mindepth 1 -maxdepth 1 | grep -qi backlight"
+conditional "On-board EEPROM nvmem" 1 "find /sys/bus/nvmem/devices -mindepth 1 -maxdepth 1 | grep -qi eeprom"
+conditional "ADC IIO device" 1 "find /sys/bus/iio/devices -maxdepth 1 -name 'iio:device*' | grep -q ."
+conditional "Thermal zones" 1 "find /sys/class/thermal -maxdepth 1 -name 'thermal_zone*' | grep -q ."
+present /dev/watchdog0 "Hardware watchdog"
+
+header "8. Accelerators, media and companion cores"
+conditional "eIQ Neutron NPU" 1 "find /dev /sys -maxdepth 4 2>/dev/null | grep -qiE 'ethosu|neutron'"
+conditional "VPU/media device" 1 "find /dev -maxdepth 1 2>/dev/null | grep -qE '/dev/video[0-9]+|/dev/mxc_vpu'"
+conditional "Camera sensor/media graph" 0 "command -v media-ctl >/dev/null 2>&1 && media-ctl -p 2>/dev/null | grep -qiE 'imx|os08|ap1302|camera'"
+rp=$(find /sys/class/remoteproc -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)
+if [ "$rp" -ge 1 ]; then row "Remoteproc controllers (M7/M33)" "$rp controller(s)" PASS; P; else row "Remoteproc controllers" "none" FAIL; F; fi
+conditional "RPMsg endpoint/bus" 0 "test -d /sys/bus/rpmsg && find /sys/bus/rpmsg/devices -mindepth 1 -maxdepth 1 | grep -q ."
+
+printf '\n## Summary\n\n'
+printf -- '- PASS: **%d**\n- FAIL: **%d**\n- INFO: **%d**\n- SKIP: **%d**\n' "$pass" "$fail" "$info" "$skip"
+[ "$fail" -eq 0 ]

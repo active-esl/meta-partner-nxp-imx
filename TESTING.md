@@ -13,6 +13,7 @@ is required.
 | i.MX 8M Nano DDR4 EVK (`imx8mn-ddr4-evk`) | `test-plan/fio-test-plan-imx8mn-evk.md` |
 | i.MX 8M Plus EVK (`imx8mp-lpddr4-evk`) | `test-plan/fio-test-plan-imx8mp-evk.md` |
 | i.MX 8M Quad EVK (`imx8mq-evk`) | `test-plan/fio-test-plan-imx8mq-evk.md` |
+| FRDM-IMX95 (`imx95-frdm-evk`) | `test-plan/frdm-imx95-hardware-validation.md` |
 
 Each plan is a self-contained, step-by-step procedure. Pick the plan for the
 board on your bench and follow it from top to bottom; every step lists the
@@ -51,6 +52,7 @@ The Phase 6 sweep is an executable, device-side script, one per board:
 - `test-plan/interface-test-imx8mn-evk.sh`
 - `test-plan/interface-test-imx8mp-evk.sh`
 - `test-plan/interface-test-imx8mq-evk.sh`
+- `test-plan/interface-test-imx95-frdm-evk.sh`
 
 It runs ~22 grouped checks (system, networking, storage, OP-TEE, USB, Wi-Fi,
 Bluetooth, audio, …) and prints a GitHub-flavored-markdown report with a
@@ -58,6 +60,42 @@ PASS / FAIL / INFO / SKIP verdict per check. Destructive and hardware-dependent
 checks are skipped by default. Plan section 6.2 gives the exact invocation.
 
 ## Artifacts
+
+For FRDM-IMX95, validate a completed deploy directory before programming:
+
+```sh
+test-plan/verify-imx95-build-artifacts.sh \
+  build/tmp/deploy/images/imx95-frdm-evk --product --mfgtool
+```
+
+Omit `--product` for the standalone partner-layer Factory gate. Product mode
+also requires Weston, Waydroid, both Zigbee RCP recipes and the NXP OTBR
+package group in the image manifest. Add `--mfgtool` when the deploy directory
+also contains the manufacturing archive. This checks the i.MX95 recovery
+payloads, complete Foundries WIC write, both production boot slots, separate
+optional read-back script and UUU dry-run parsing. The verifier prints SHA-256
+fingerprints for the publishable WIC, production boot container, U-Boot FIT,
+manifest and manufacturing archive when present.
+
+The Factory image and mfgtools archive come from separate builds. Assemble a
+single, matched programming directory without overwriting an earlier pack:
+
+```sh
+test-plan/prepare-imx95-programming-bundle.sh \
+  build/tmp/deploy/images/imx95-frdm-evk \
+  mfgtool-files-imx95-frdm-evk.tar.gz \
+  uuu-imx95-product
+```
+
+The helper refuses recovery payloads in the production slots, checks the full
+Foundries WIC/dual-slot script and separate aligned verification script, runs
+both through bundled UUU's dry parser, writes `PROGRAMMING-SHA256SUMS`, and
+publishes the output atomically. It also installs `program-imx95.sh`, which
+checks every production and recovery input, requires exactly one NXP MX95
+BootROM device (`1fc9:015c` or `1fc9:015d`), refuses a concurrent UUU process,
+and retains a timestamped UUU transcript. Use `check`, `program`, or the
+separate optional `verify` mode; normal programming never performs the slower
+read-back CRC.
 
 Completed-run evidence is committed under **`test-reports/<lmp-release>/`** (e.g.
 `test-reports/lmp-v96/`), keyed by LmP release line — the machine name is in each
