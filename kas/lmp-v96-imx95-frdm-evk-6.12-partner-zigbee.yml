@@ -1,0 +1,11 @@
+# Compatibility gate for NXP's IW612 Zigbee RCP SDK on Foundries LmP v96.
+#
+# Keep this separate from the OTBR package-group gate: that dependency graph
+# does not build zigbee-rcp-sdk, while the complete product image does.
+
+header:
+  version: 14
+  includes:
+    - kas/lmp-v96-imx95-frdm-evk-6.12-partner-thread.yml
+
+target: zigbee-rcp-sdk

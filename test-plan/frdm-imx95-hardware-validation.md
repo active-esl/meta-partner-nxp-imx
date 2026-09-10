@@ -60,6 +60,7 @@ programming:
 ```sh
 kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner-mfgtool.yml
 kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner-thread.yml
+kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner-zigbee.yml
 kas-container build kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
 ```
 
@@ -102,6 +103,14 @@ it in two switch cases. The partner patch removes only those unreachable cases.
 Retain the negative compile log, then require `otbr-iwxxx:do_compile`, package
 generation and the complete `packagegroup-nxp-otbr` gate to pass. Re-audit this
 patch rather than carrying it blindly when either source revision changes.
+
+NXP's `zigbee-rcp-sdk` recipe sets `S = "${UNPACKDIR}"`, but LmP v96's
+Scarthgap BitBake does not define `UNPACKDIR`; the unresolved value is rejected
+by `do_unpack`. The vendor tarball expands directly into `WORKDIR`, so the
+partner layer overrides `S` to `WORKDIR` for `imx95-frdm-evk` only. The OTBR
+package-group dependency graph does not include this SDK: retain a separate
+`zigbee-rcp-sdk` build gate before treating the full connectivity selection as
+buildable.
 
 That connectivity release also appends a patch which removes old systemd's
 explicit rejection of router advertisements received from the interface's own
