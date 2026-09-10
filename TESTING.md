@@ -77,6 +77,22 @@ optional read-back script and UUU dry-run parsing. The verifier prints SHA-256
 fingerprints for the publishable WIC, production boot container, U-Boot FIT,
 manifest and manufacturing archive when present.
 
+The Factory image and mfgtools archive come from separate builds. Assemble a
+single, matched programming directory without overwriting an earlier pack:
+
+```sh
+test-plan/prepare-imx95-programming-bundle.sh \
+  build/tmp/deploy/images/imx95-frdm-evk \
+  mfgtool-files-imx95-frdm-evk.tar.gz \
+  uuu-imx95-product
+```
+
+The helper refuses recovery payloads in the production slots, checks the full
+Foundries WIC/dual-slot script and separate aligned verification script, runs
+both through bundled UUU's dry parser, writes `PROGRAMMING-SHA256SUMS`, and
+publishes the output atomically. Its final output gives separate program and
+optional read-back commands.
+
 Completed-run evidence is committed under **`test-reports/<lmp-release>/`** (e.g.
 `test-reports/lmp-v96/`), keyed by LmP release line — the machine name is in each
 filename, so artifacts sit flat under the release folder. `test-reports/README.md`
