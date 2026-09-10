@@ -102,7 +102,7 @@ repos:
       meta-imx-bsp:
 
   meta-partner-nxp-imx:
-    path: /data_drive/esl/.codex-meta-partner-nxp-imx95
+    path: .
 
 local_conf_header:
   imx95-v96-partner: |

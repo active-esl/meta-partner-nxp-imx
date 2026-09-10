@@ -3,7 +3,7 @@
 header:
   version: 14
   includes:
-    - /data_drive/esl/.codex-meta-partner-nxp-imx95/kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
+    - kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
 
 distro: lmp-mfgtool
 target: mfgtool-files
