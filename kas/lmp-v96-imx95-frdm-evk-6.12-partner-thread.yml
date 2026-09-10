@@ -17,8 +17,12 @@ repos:
     commit: 14a32aa7467f58257e3bb93a5c0fa443c70ae1ae
     path: build/layers/meta-nxp-connectivity
     layers:
+      meta-nxp-zigbee-rcp:
       meta-nxp-otbr:
     patches:
       0001-scarthgap-compatibility:
         repo: meta-partner-nxp-imx
         path: kas/patches/meta-nxp-connectivity/0001-nxp-otbr-declare-scarthgap-compatibility.patch
+      0002-zigbee-scarthgap-compatibility:
+        repo: meta-partner-nxp-imx
+        path: kas/patches/meta-nxp-connectivity/0002-nxp-zigbee-rcp-declare-scarthgap-compatibility.patch
