@@ -10,7 +10,9 @@
 - Product head used for the successful r7 build: local equivalent `dfb3168`
 - BSP head used for the successful r7 build: local equivalent `625d066`
 - Distro head used for the successful r7 build: local equivalent `39af55f`
-- Curated local review branch: `review/imx95-frdm-nxp-6.12`, head `e2cc5a6`
+- Curated local review branch: `review/imx95-frdm-nxp-6.12`; its six-commit
+  implementation/evidence series ends at `e2cc5a6`, before this publication
+  record is mirrored as the seventh commit
 - Development/review Git tree: `ef44a092e73efc188ad9bf98994affa2acfe370c`
 
 FoundriesFactory v96 explicitly relocated NXP BSP support from `meta-lmp` to
