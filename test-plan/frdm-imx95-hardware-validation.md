@@ -38,20 +38,23 @@ logs locally; reference their path and SHA-256 in the committed test record.
 | Camera/ISP | Signed optional NXP camera DTBs in FIT; media/ISP/VPU kernel support | Select matching DTB, enumerate supported camera, preview through ISP to HDMI |
 | VPU/GPU/NPU | Amphion/media, DRM/GPU userspace and eIQ Neutron support | Decode known clip, render GLES, run known NPU model and save timing/output |
 | M7/M33 | System Manager M33 boot plus Linux M7 remoteproc/RPMsg | Confirm M33 banner; load known M7 firmware and exchange RPMsg round trip |
-| Board peripherals | PCAL GPIO expanders, PCA9632 LEDs, ADC, thermal and watchdog are described by the NXP 6.12 DT; the on-board PCF2131 RTC and EEPROM are a known DT gap pending schematic/bus confirmation | Read RTC/EEPROM/ADC/temp; exercise spare GPIO/LED; controlled watchdog reboot |
+| Board peripherals | PCAL GPIO expanders, PCA9632 LEDs, ADC, thermal and watchdog are described by the NXP 6.12 DT; PCF2131 is owned by System Manager and exported through SCMI BBM; the AT24C256 EEPROM is added on Linux LPI2C2 | Read RTC/EEPROM/ADC/temp; exercise spare GPIO/LED; controlled watchdog reboot |
 
-The NXP `lf-6.12.49-2.2.0` FRDM device tree, and the current upstream
-`lf-6.12.y` tree checked on 2026-09-10, do not instantiate the PCF2131 or
-EEPROM advertised for the board. Do not guess their I2C bus/address: confirm
-them from UM12472/design files or a controlled bus scan, then add a
-machine-scoped DT patch and retain the negative/positive probe evidence.
+NXP's public [FRDM-IMX95 board page][nxp-frdm] and [board block
+diagram][nxp-frdm-block] confirm that the PCF2131 RTC and EEPROM are fitted.
+The matching NXP U-Boot FRDM device tree at the pinned `lf_v2025.04` revision
+provides the missing EEPROM wiring: an AT24C256 at `0x50` on LPI2C2 with a
+64-byte page. The machine-scoped Linux patch carries that same description.
 
-NXP's public [FRDM-IMX95 board page][nxp-frdm] lists the PCF2131 and EEPROM,
-and its [board block diagram][nxp-frdm-block] connects both over I2C. This is
-authoritative evidence that the devices are fitted, but not of their bus or
-address. As checked on 2026-09-10, UM12472 and the 21.15 MB
-`FRDM-IMX95-DESIGNFILES` archive are account-gated; authenticate to those
-sources or use a controlled on-board inventory before writing the nodes.
+The RTC must not be instantiated as a Linux I2C client. The pinned System
+Manager revision owns LPI2C1 and initializes the PCA2131-compatible device at
+`0x53`; its `mx95evk` configuration grants the A55 logical machine access to
+`BRD_SM_RTC_PCA2131`. Linux reaches it through NXP's i.MX SCMI BBM protocol and
+`rtc-imx-sm-bbm` driver. The machine fragment selects both
+`CONFIG_IMX_SCMI_BBM_EXT` and `CONFIG_RTC_DRV_IMX_BBM_SCMI` explicitly so this
+cross-firmware contract cannot disappear through a kernel default change.
+Hardware sign-off requires a working `hwclock --show`, an SCMI BBM RTC name,
+and cold-power persistence—not a direct `rtc-pcf2127` probe.
 
 [nxp-frdm]: https://www.nxp.com/design/design-center/development-boards-and-designs/FRDM-IMX95
 [nxp-frdm-block]: https://www.nxp.com/assets/block-diagram/en/FRDM-IMX95.pdf

@@ -1,0 +1,37 @@
+From 5d495f973e43406dc80e22f8198c7701adb417c9 Mon Sep 17 00:00:00 2001
+From: Dynamic Devices BSP Team <support@dynamicdevices.co.uk>
+Date: Thu, 10 Sep 2026 13:00:00 +0100
+Subject: [PATCH] arm64: dts: freescale: imx95-frdm: add board EEPROM
+
+The FRDM-IMX95 carries an AT24C256 EEPROM on LPI2C2 at address 0x50.
+NXP's U-Boot device tree at the matching lf_v2025.04 release describes
+the device, but the lf-6.12.49-2.2.0 Linux device tree omits it.
+
+Carry the same bus, address and page size into Linux so the at24 driver
+exports the board EEPROM through nvmem.
+
+Signed-off-by: Dynamic Devices BSP Team <support@dynamicdevices.co.uk>
+---
+ arch/arm64/boot/dts/freescale/imx95-15x15-frdm.dts | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/freescale/imx95-15x15-frdm.dts b/arch/arm64/boot/dts/freescale/imx95-15x15-frdm.dts
+index 68bc9aabf79e..3233ca4c4df7 100644
+--- a/arch/arm64/boot/dts/freescale/imx95-15x15-frdm.dts
++++ b/arch/arm64/boot/dts/freescale/imx95-15x15-frdm.dts
+@@ -317,6 +317,12 @@ &lpi2c2 {
+ 	pinctrl-0 = <&pinctrl_lpi2c2>;
+ 	status = "okay";
+ 
++	eeprom@50 {
++		compatible = "atmel,24c256";
++		reg = <0x50>;
++		pagesize = <64>;
++	};
++
+ 	pcal6524: gpio@22 {
+ 		compatible = "nxp,pcal6524";
+ 		pinctrl-names = "default";
+-- 
+2.43.0
+
