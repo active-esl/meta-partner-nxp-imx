@@ -16,3 +16,9 @@ repos:
     layers:
       meta-nxp-zigbee-rcp: disabled
       meta-nxp-otbr: disabled
+
+local_conf_header:
+  imx95-v96-partner-mfgtool-layer-scope: |
+    # The product layers above are absent from recovery, so mask only their
+    # corresponding partner appends to keep dangling-append checking strict.
+    BBMASK += "recipes-connectivity/(otbr|zigbee-rcp-apps|zigbee-rcp-sdk)/"
