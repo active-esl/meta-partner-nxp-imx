@@ -26,9 +26,14 @@ Its payload contains the requested 429,436-byte
 `/usr/lib/firmware/nxp/uartspi_n61x_v1.bin.se` and the 330,460-byte
 `uartuart_n61x_v1.bin.se` companion image.
 
-This proves that the replacement BSP builds and packages the missing firmware;
-it does not yet prove that the product rootfs installs it or that the radio
-works. After programming the integrated v96 image, require the file on target,
-zero `btnxpuart` firmware/protocol errors, a powered `hci0`, discovery of a
-known advertiser, pairing and a data/audio exchange before promoting Bluetooth
-to hardware proven.
+The successful replacement Factory image manifest
+`lmp-factory-image-imx95-frdm-evk-20260910022853.manifest` is 97,714 bytes,
+has SHA-256
+`5d818afe6d50a6d166628d229fc9cd37b9e0164ca6d6b0cee611bc683c9ae2d7`, and
+lists `firmware-nxp-wifi-nxpiw612-sdio all 1.1-r0`. This proves that the
+replacement partner BSP both packages and selects the missing firmware in its
+Factory rootfs. It does not yet prove the current HDMI/Waydroid product image
+or the physical radio. After programming the integrated v96 image, require the
+file on target, zero `btnxpuart` firmware/protocol errors, a powered `hci0`,
+discovery of a known advertiser, pairing and a data/audio exchange before
+promoting Bluetooth to hardware proven.
