@@ -19,6 +19,7 @@ SRC_URI += " \
     file://0001-FIO-toimx-of-enable-using-OF_DYNAMIC-without-OF_UNIT-6.12.patch \
     file://0004-FIO-toup-hwrng-optee-support-generic-crypto-6.12.patch \
     file://0005-ALSA-compress-import-DMA_BUF-namespace.patch \
+    file://0006-arm64-dts-freescale-imx95-frdm-add-board-EEPROM.patch \
 "
 
 # The Foundries 6.6 kernel metadata is retained initially for LmP policy and

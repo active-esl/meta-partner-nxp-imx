@@ -217,7 +217,7 @@ cards=$(find /sys/class/sound -maxdepth 1 -name 'card*' 2>/dev/null | wc -l)
 if [ "$cards" -ge 2 ]; then row "MQS/PDM/HDMI audio cards" "$cards cards" PASS; P; else row "Audio cards" "$cards" FAIL; F; fi
 
 header "7. Board management and sensors"
-conditional "External PCF2131 RTC" 1 "grep -qi pcf2131 /sys/class/rtc/rtc*/name"
+conditional "System Manager PCF2131 RTC" 1 "grep -qiE 'imx.*bbm|bbm.*rtc' /sys/class/rtc/rtc*/name && hwclock --show"
 conditional "GPIO expander PCAL6524" 1 "find /sys/bus/i2c/drivers -path '*/pca953x/*-*' -type l | grep -q ."
 conditional "PCA963x LED controller" 1 "find /sys/class/leds -mindepth 1 -maxdepth 1 | grep -qi backlight"
 conditional "On-board EEPROM nvmem" 1 "find /sys/bus/nvmem/devices -mindepth 1 -maxdepth 1 | grep -qi eeprom"
