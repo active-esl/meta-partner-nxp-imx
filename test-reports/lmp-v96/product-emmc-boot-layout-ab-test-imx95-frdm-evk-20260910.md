@@ -38,8 +38,9 @@ SPL_FIT_SIGNATURE_STRICT needs a valid config node in FIT
 This proves BootROM loaded the intact container and SPL found the user-area
 FIT. The remaining stop is independent: the local unsigned build retained
 strict FIT verification because unqualified `UBOOT_SIGN_ENABLE = "0"` did not
-override the BSP's `:sota` secure default. Local KAS must use
-`UBOOT_SIGN_ENABLE:sota = "0"`; signed production builds retain strict checks.
+override the BSP's more-specific secure default. Local KAS must use the exact
+`UBOOT_SIGN_ENABLE:sota:mx95-generic-bsp = "0"` scope; signed production builds
+retain strict checks.
 
 Diagnostic log: `uuu-diagnostic-user-area-fit-20260910T181328Z.log`, SHA-256
 prefix `ed8aa8c`.
