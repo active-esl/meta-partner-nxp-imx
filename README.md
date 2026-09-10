@@ -14,7 +14,8 @@ For FRDM-IMX95 this means:
 
 - this layer owns the coherent NXP `lf-6.12.49-2.2.0` component set, the
   `imx95-frdm-evk` reference machine, Foundries OSTree/FIT boot integration,
-  kernel and mfgtool device trees, WIC layout and UUU/mfgtools support;
+  kernel and mfgtool device trees, IW612 driver/firmware alignment, WIC layout
+  and UUU/mfgtools support;
 - a product distro layer selects display, Waydroid and other image features;
 - a customer BSP layer may inherit the generic `mx95-nxp-bsp` support and add
   only the custom board delta.
@@ -36,8 +37,9 @@ Do not track an unpinned branch in a production Factory manifest.
 ## FRDM-IMX95 proof order
 
 1. Parse the exact Factory manifest and audit effective providers/versions.
-2. Build `linux-lmp-fslc-imx`, `u-boot-fio`, `imx-atf`, System Manager, OEI,
-   OP-TEE, `imx-boot` and `mfgtool-files` independently.
+2. Build `linux-lmp-fslc-imx`, `kernel-module-nxp-wlan`,
+   `firmware-nxp-wifi`, `u-boot-fio`, `imx-atf`, System Manager, OEI, OP-TEE,
+   `imx-boot` and `mfgtool-files` independently.
 3. Build the complete Factory image and inspect its FIT, WIC and UUU bundle.
 4. Program only with the i.MX95 UUU flow and retain serial evidence.
 5. Prove boot, OTA/rollback and board interfaces on hardware.
