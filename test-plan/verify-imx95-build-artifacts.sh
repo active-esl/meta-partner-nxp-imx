@@ -141,6 +141,7 @@ done
 if [ "$product" -eq 1 ]; then
     for package in \
         gstreamer1.0-plugins-bad-kms \
+        mdns \
         mlanutl \
         otbr-iwxxx \
         packagegroup-nxp-otbr \
@@ -151,6 +152,7 @@ if [ "$product" -eq 1 ]; then
         zigbee-rcp-sdk; do
         need_package "$package"
     done
+    reject_package libnss-mdns
     reject_package otbr
 fi
 
