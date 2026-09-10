@@ -202,6 +202,10 @@ testing. Close every required SKIP with the manual proof in the matrix above.
    dependency checkouts and may own generated BitBake work/stamps. A config
    using `path: .` resolves the partner layer from `/work`, not `/repo`, when
    those mounts differ; this can silently build a stale source snapshot.
+   NXP's matching OTBR recipe is deliberately unversioned
+   (`otbr-iwxxx.bb`), so its partner append must also be unversioned
+   (`otbr-iwxxx.bbappend`); a version-wildcard `_%.bbappend` is dangling and
+   must remain a hard parse failure.
 8. A derived distro can change a virtual provider's name without changing its
    implementation. Foundries' generic TA-devkit recipe recognises
    `optee-os-fio`, while `lmp-mfgtool` selects `optee-os-fio-mfgtool`; make the
