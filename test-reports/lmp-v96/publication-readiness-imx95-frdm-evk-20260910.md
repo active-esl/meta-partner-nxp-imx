@@ -1,79 +1,72 @@
 # FRDM-IMX95 v96 partner-layer publication readiness
 
-- Result: **INCOMPLETE — local product build is reproducible, remote Factory
-  inputs are not yet published and pinned**
-- Partner development head: `1a3fe7e`
-- Partner upstream/base: `foundriesio/meta-partner`, branch `nxp-imx`, head
+- Result: **INCOMPLETE — partner layer published; remaining Factory inputs
+  still require immutable remote publication**
+- Active ESL fork: `https://github.com/active-esl/meta-partner-nxp-imx`
+- GitHub relationship: public fork of `foundriesio/meta-partner`
+- Upstream/base: branch `nxp-imx`, head
   `176928480302c8e3b91348e07feecd3b2aa5dc83`
-- Partner delta: 64 commits, 129 changed paths, 7,925 insertions and one
+- Curated implementation head before this metadata record:
+  `review/imx95-frdm-nxp-6.12` at
+  `a9dd237ba01f9042e318be07dfef35f881fb74fd`
+- Development implementation head before its matching metadata record:
+  `feature/imx95-frdm-nxp-6.12` at
+  `155f11fd62a7470206d4d48a770f25834f6a7257`
+- Development/review Git tree:
+  `367f7ce63a097404e619026ac7f6d4aec59ba27a`
+- Development delta: 67 commits, 130 changed paths, 7,984 insertions and one
   deletion
-- Product head used for the successful r7 build: local equivalent `dfb3168`
-- BSP head used for the successful r7 build: local equivalent `625d066`
-- Distro head used for the successful r7 build: local equivalent `39af55f`
-- Curated local review branch: `review/imx95-frdm-nxp-6.12`; its nine-commit
-  implementation/evidence series ends at `3fbc71c`, before this refreshed
-  publication/build record is added
-- Development/review Git tree: `13f8a6d3c89939075646da0d8606b9efb52d7710`
 
 FoundriesFactory v96 explicitly relocated NXP BSP support from `meta-lmp` to
 the `meta-partner` repository. The FRDM implementation follows that boundary:
-coherent NXP platform, reference-machine, boot/update and manufacturing support
-live in the partner layer; Dynamic Devices layers retain product policy and
-customer-specific deltas.
+coherent NXP platform, reference-machine, boot/update and manufacturing
+support live in the partner layer; Dynamic Devices layers retain product
+policy and customer-specific deltas.
 
-## Proven local state
+## Proven state
 
-- The partner branch is based directly on `origin/nxp-imx`.
-- The complete r7 Factory product image and static artifact verifier pass.
-- The final r7 source trees on ai-tools are tree-equivalent to the reviewed
-  local partner, BSP and distro fixes recorded in the build report.
-- The product smoke KAS pins every upstream Foundries/NXP/OE component used by
-  the v96 build.
-- The 60-commit exploratory partner history has been regrouped locally into
-  six review commits: coherent BSP, IW612/provider integration, pinned KAS
-  gates, executable validation, retained evidence, and Foundries mfgtools.
-- `git diff` is empty and the Git tree hash is identical between the green
-  development head and the curated review head. Bash/POSIX syntax and
-  ShellCheck pass for all four executable FRDM validation/programming helpers.
+- GitHub identifies the Active ESL repository as a fork whose parent and
+  source are both `foundriesio/meta-partner`; the upstream relationship is
+  preserved rather than represented by an unrelated source repository.
+- Both local branches track their exact Active ESL remote branches, and GitHub
+  returned the full commit IDs recorded above.
+- Gitleaks scanned the 12-commit curated delta before its first push and found
+  no leaks. The branch contains no Codex/Cursor co-author trailers.
+- The green r8 product build at partner head `3fbc71c` attempted all 8,423
+  tasks successfully and passed the independent product-artifact verifier
+  34/34. It proves the FRDM EEPROM node and System Manager/SCMI RTC
+  configuration; see
+  `product-build-pass-imx95-frdm-evk-20260910T100352Z.md`.
+- The two later curated commits only scope optional connectivity appends out of
+  the deliberately smaller mfgtools graph. The corrected graph parsed 3,681
+  recipes with six masked files and zero errors at `a9dd237`.
 
-## Publication gaps
+## Remaining publication gaps
 
-1. `DynamicDevices/meta-partner-nxp-imx` and
-   `DynamicDevices/meta-partner-nxp-imx95` do not exist on GitHub.
-2. The local development and curated review branches have no publishable
-   Dynamic Devices remote; their only remote is Foundries' upstream repository.
-3. `kas/lmp-imx95-frdm-evk-smoke.yml` deliberately uses sibling checkout paths
-   for `meta-partner-nxp-imx`, `meta-dynamicdevices-bsp` and
-   `meta-dynamicdevices-distro`. It is a valid local development gate, not an
-   immutable Factory manifest.
-4. The product branch is five commits ahead of
-   `DynamicDevices/integration/imx95-frdm-screen-current`.
-5. BSP commit `625d066` and distro commit `39af55f` are reviewed local heads but
-   are not reachable from a tracked remote branch. The distro remote has an
-   older content-equivalent KMS fix (`280f077`) on a different history; that is
-   not proof that the exact r7 input is published.
+1. The exact BSP head `625d066`, distro head `39af55f` and product integration
+   head `dfb3168` are reviewed local inputs but are not all reachable from
+   tracked remote branches.
+2. `kas/lmp-imx95-frdm-evk-smoke.yml` still uses sibling checkout paths for
+   the partner, BSP and distro components. It is a valid local-development
+   gate, not an immutable Factory manifest.
+3. The current green product WIC was built from local tree-equivalent inputs,
+   not by cloning every component from its final remote source lock.
+4. The matching `a9dd237` mfgtools archive, atomic programming bundle and
+   hardware evidence are still in progress.
 
 ## Required publication gate
 
-Before triggering a production Foundries build:
+Before triggering the production Foundries build:
 
-1. agree the Dynamic Devices ownership model: a fork of
-   `foundriesio/meta-partner` retaining the `nxp-imx` lineage is the default
-   recommendation; upstream contribution can follow as a focused PR;
-2. publish a reviewed FRDM branch and retain the exact partner commit SHA;
-3. publish the exact BSP, distro and product integration heads;
-4. replace the three development-only sibling paths with remote URLs and
-   immutable commit SHAs in the production Factory manifest;
-5. run KAS parse/component gates and a clean product build from those remote
-   inputs; and
-6. bind the resulting WIC/mfgtools bundle to that remote source lock before
-   hardware acceptance.
+1. publish the exact BSP, distro and product integration heads;
+2. replace development-only sibling paths with remote URLs and immutable
+   commit SHAs in the production Factory manifest;
+3. run KAS parse/component gates and a clean product build from those remote
+   inputs;
+4. bind the resulting WIC and mfgtools archive to that source lock; and
+5. complete programming, boot, rollback and requirement-by-requirement board
+   acceptance.
 
-No GitHub repository, fork, branch, PR or Factory build was created during this
-audit. Those are external publication actions and must use the agreed
-Dynamic Devices repository location. The green r8 product build at partner
-head `3fbc71c` attempted all 8,423 tasks successfully and passed the
-independent product-artifact verifier 34/34. It also proves the FRDM EEPROM
-node and the System Manager/SCMI RTC configuration; see
-`product-build-pass-imx95-frdm-evk-20260910T100352Z.md`. Its artifacts are
-valid inputs to the matching mfgtools build and imminent bench validation.
+No upstream Foundries PR or production Factory build has been created. Those
+are later gates; the Active ESL partner fork and its two working branches are
+now published and ready to be consumed by the product source lock.

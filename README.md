@@ -4,6 +4,36 @@ This branch carries the Foundries Linux microPlatform integration for NXP i.MX
 SoCs. It extends the vendor BSP layers with the boot, update, signing and
 manufacturing-tool behaviour required by LmP.
 
+This repository is an Active ESL fork of the Foundries
+[`meta-partner` `nxp-imx` branch][foundries-nxp-imx]. It preserves and builds
+on that branch's existing NXP support; the FRDM-IMX95 work is an additional,
+machine-scoped port rather than a replacement layer.
+
+## Inherited Foundries NXP board support
+
+The upstream `nxp-imx` branch already carries Foundries boot/update and
+manufacturing integration for these NXP reference boards and variants:
+
+| Reference board | Existing machine/variant names |
+|---|---|
+| i.MX 6UltraLite EVK | `imx6ulevk` |
+| i.MX 6ULL EVK | `imx6ullevk`, `imx6ullevk-sec` |
+| i.MX 8QuadMax MEK | `imx8qm-mek`, `imx8qm-mek-sec` |
+| i.MX 8M Quad EVK | `imx8mq-evk`, `imx8mq-evk-ebbr` |
+| i.MX 8M Mini LPDDR4 EVK | `imx8mm-lpddr4-evk`, `imx8mm-lpddr4-evk-sec`, `imx8mm-lpddr4-evk-ebbr` |
+| i.MX 8M Nano DDR4/LPDDR4 EVKs | `imx8mn-ddr4-evk`, `imx8mn-lpddr4-evk` and their `-sec` variants |
+| i.MX 8M Plus LPDDR4 EVK | `imx8mp-lpddr4-evk`, `imx8mp-lpddr4-evk-sec`, `imx8mp-lpddr4-evk-ebbr` |
+| i.MX 93 11x11 LPDDR4X EVK | `imx93-11x11-lpddr4x-evk` |
+
+The secure and EBBR names are configuration variants of the same physical
+reference boards, not additional boards. Foundries' checked-in end-to-end
+operator plans currently cover the i.MX 8M Mini, Nano DDR4, Plus and Quad
+EVKs. Their other machine and mfgtools definitions are inherited here but
+must not be represented as newly validated by Active ESL.
+
+Active ESL adds `imx95-frdm-evk`, including the coherent NXP 6.12 component
+set and the Foundries OSTree/FIT/WIC/mfgtools integration described below.
+
 ## Layer boundary
 
 This layer owns reusable NXP platform integration and NXP reference-machine
@@ -75,3 +105,5 @@ the v96 baseline was also used to compile Linux 6.12.49, U-Boot 2025.04, TF-A
 2.12, OP-TEE 4.8, OEI, System Manager, imx-boot, and the mfgtool variants. Keep
 these component gates ahead of a complete Factory image build so failures are
 attributed to the smallest responsible layer.
+
+[foundries-nxp-imx]: https://github.com/foundriesio/meta-partner/tree/nxp-imx
