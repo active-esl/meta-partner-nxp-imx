@@ -29,7 +29,7 @@ logs locally; reference their path and SHA-256 in the committed test record.
 | Ethernet | Both NETC RGMII ports and PHY reset GPIOs enabled | Cable each RJ45 in turn; carrier, DHCP, ping and sustained transfer on `end0` and `end1` |
 | IW612 Wi-Fi | USDHC3, `mlan`/`moal`, aligned secure firmware | Scan, associate on 2.4 and 5 GHz, DHCP, HTTPS and sustained transfer |
 | IW612 Bluetooth | LPUART5 + NXP HCI attach/firmware | `hci0`, scan, pair and exchange data/audio with a known peer |
-| IW612 802.15.4 | IW612 firmware and IEEE 802.15.4 kernel/userspace support | PHY appears and exchanges frames with a known Thread/Zigbee peer |
+| IW612 802.15.4 | LPSPI3/interrupt/reset transport plus NXP `otbr-agent-iwxxx` from the matching `meta-nxp-connectivity` release | Spinel radio starts, `wpan0` appears, and exchanges frames with a known Thread peer |
 | eMMC/microSD | USDHC1 HS400 + USDHC2 UHS/card detect | Identify eMMC, insert/remove SD, mount, write/read/verify a disposable test file |
 | USB | USB2 Type-A host; USB3 Type-C dual-role/Type-C controller | Enumerate known USB2 and USB3 devices; prove intended Type-C role transition |
 | Audio | MQS jack, PDM microphones and HDMI audio | Capture PDM audio; play known samples through jack and HDMI |
@@ -84,7 +84,7 @@ HDMI, IW612 and the second Ethernet port connected, run on the target:
 
 ```sh
 sudo ./interface-test-imx95-frdm-evk.sh \
-  --require-hdmi --require-wifi --require-second-ethernet \
+  --require-hdmi --require-wifi --require-thread --require-second-ethernet \
   | tee interface-test-results-imx95-frdm-evk-$(date -u +%Y%m%dT%H%M%SZ).md
 ```
 
@@ -92,7 +92,8 @@ For the product image, add the Waydroid hard gate:
 
 ```sh
 sudo ./interface-test-imx95-frdm-evk.sh \
-  --require-hdmi --require-waydroid --require-wifi --require-second-ethernet
+  --require-hdmi --require-waydroid --require-wifi --require-thread \
+  --require-second-ethernet
 ```
 
 The script is a discovery/regression sweep, not the whole acceptance test. Its

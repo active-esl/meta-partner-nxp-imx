@@ -17,6 +17,9 @@ For FRDM-IMX95 this means:
   kernel and mfgtool device trees, IW612 driver/firmware alignment, WIC layout
   and UUU/mfgtools support;
 - a product distro layer selects display, Waydroid and other image features;
+- Thread/Matter products pin NXP `meta-nxp-connectivity` to the same BSP
+  release and select its IWxxx OTBR packages; the partner machine exposes the
+  physical `has-iwxxx` capability and LPSPI3 transport;
 - a customer BSP layer may inherit the generic `mx95-nxp-bsp` support and add
   only the custom board delta.
 
@@ -33,6 +36,12 @@ manifest must pin and add:
 - this layer to the Factory BSP layer list.
 
 Do not track an unpinned branch in a production Factory manifest.
+
+NXP's `rel_imx_6.12.49_2.2.0` connectivity tag is based on newer Yocto release
+series and does not declare Scarthgap compatibility. Foundries LmP v96 is
+Scarthgap, so Thread support requires a separately tested compatibility port;
+do not suppress `LAYERSERIES_COMPAT` or pretend generic Linux IEEE 802.15.4
+support replaces the NXP Spinel-over-SPI userspace path.
 
 ## FRDM-IMX95 proof order
 

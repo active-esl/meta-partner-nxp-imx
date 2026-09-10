@@ -7,10 +7,11 @@ set -u
 require_hdmi=0
 require_waydroid=0
 require_wifi=0
+require_thread=0
 require_eth1=0
 
 usage() {
-    echo "usage: $0 [--require-hdmi] [--require-waydroid] [--require-wifi] [--require-second-ethernet]"
+    echo "usage: $0 [--require-hdmi] [--require-waydroid] [--require-wifi] [--require-thread] [--require-second-ethernet]"
 }
 
 while [ "$#" -gt 0 ]; do
@@ -18,6 +19,7 @@ while [ "$#" -gt 0 ]; do
         --require-hdmi) require_hdmi=1 ;;
         --require-waydroid) require_waydroid=1 ;;
         --require-wifi) require_wifi=1 ;;
+        --require-thread) require_thread=1 ;;
         --require-second-ethernet) require_eth1=1 ;;
         -h|--help) usage; exit 0 ;;
         *) usage >&2; exit 2 ;;
@@ -139,7 +141,9 @@ if [ -n "$wifi_if" ]; then
 elif [ "$require_wifi" -eq 1 ]; then row "IW612 Wi-Fi" "no wireless interface" FAIL; F
 else row "IW612 Wi-Fi" "no interface; module/card not required for this run" SKIP; S; fi
 conditional "Bluetooth HCI" "$require_wifi" "test -d /sys/class/bluetooth/hci0"
-conditional "IEEE 802.15.4 PHY" 0 "test -n \"\$(find /sys/class/ieee802154 -mindepth 1 -maxdepth 1 2>/dev/null | head -1)\""
+conditional "IW612 Spinel SPI transport" 1 "find /dev -maxdepth 1 -name 'spidev*' | grep -q ."
+conditional "NXP IW612 OpenThread tools" "$require_thread" "command -v otbr-agent-iwxxx >/dev/null 2>&1 && command -v ot-ctl-iwxxx >/dev/null 2>&1"
+conditional "OpenThread wpan0 interface" "$require_thread" "ip link show wpan0"
 
 header "6. USB, PCIe, CAN and audio"
 conditional "USB 2.0 root hub" 1 "lsusb | grep -q 'root hub'"
