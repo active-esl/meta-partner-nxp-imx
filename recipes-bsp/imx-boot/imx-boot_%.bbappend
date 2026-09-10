@@ -6,3 +6,13 @@ SRCREV:imx95-frdm-evk = "be80fadd5e7988214149a2bc48daac1b0950d4c2"
 # imx-m7-demos:do_deploy and copies M4_DEFAULT_IMAGE_MX95 to m7_image.bin.
 # The mfgtool flash_all container must carry that real M7 payload; a zero-byte
 # stand-in can build but does not prove a valid AHAB M7 container entry.
+
+# meta-imx's generic append expresses this through IMX_M4_DEMOS, but with the
+# v96/Scarthgap parser the final do_compile dependency flag loses that deferred
+# override expansion. Product images happened to deploy the demos elsewhere;
+# the recovery-only graph therefore reached imx-boot without mcore-demos.
+# Keep this correction board-scoped and make the mfgtool dependency explicit.
+python __anonymous () {
+    if d.getVar("MACHINE") == "imx95-frdm-evk":
+        d.appendVarFlag("do_compile", "depends", " imx-m7-demos:do_deploy")
+}
