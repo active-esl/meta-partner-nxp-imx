@@ -97,7 +97,17 @@ need_file "imx-boot-${machine}"
 boot_target=$(readlink "${deploy}/imx-boot-${machine}" 2>/dev/null || true)
 case "$boot_target" in
     *flash_a55*) ok "production imx-boot resolves to flash_a55" ;;
-    *) bad "production imx-boot target is not flash_a55: ${boot_target:-not a symlink}" ;;
+    *)
+        # The Foundries artifact API materialises deploy-directory symlinks as
+        # regular files.  The image testdata is published alongside the binary
+        # and preserves the BitBake selection that produced it.
+        if grep -Eq '"IMXBOOT_TARGETS"[[:space:]]*:[[:space:]]*"flash_a55"' "${deploy}/${image}.testdata.json" 2>/dev/null &&
+           grep -Eq '"IMXBOOT_TARGETS:imx95-frdm-evk"[[:space:]]*:[[:space:]]*"flash_a55"' "${deploy}/${image}.testdata.json" 2>/dev/null; then
+            ok "production metadata selects flash_a55"
+        else
+            bad "production imx-boot is neither a flash_a55 symlink nor backed by flash_a55 test metadata"
+        fi
+        ;;
 esac
 
 need_file "u-boot-${machine}.itb"

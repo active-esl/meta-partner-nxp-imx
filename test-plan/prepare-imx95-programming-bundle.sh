@@ -33,7 +33,15 @@ done
 boot_target=$(readlink "${deploy}/imx-boot-${machine}" 2>/dev/null || true)
 case "$boot_target" in
     *flash_a55*) ;;
-    *) echo "production imx-boot does not resolve to flash_a55: ${boot_target:-not a symlink}" >&2; exit 1 ;;
+    *)
+        # Foundries downloads preserve the selected BitBake variables in
+        # testdata.json, but not the deploy-directory symlink itself.
+        if ! grep -Eq '"IMXBOOT_TARGETS"[[:space:]]*:[[:space:]]*"flash_a55"' "${deploy}/${image}.testdata.json" 2>/dev/null ||
+           ! grep -Eq '"IMXBOOT_TARGETS:imx95-frdm-evk"[[:space:]]*:[[:space:]]*"flash_a55"' "${deploy}/${image}.testdata.json" 2>/dev/null; then
+            echo "production imx-boot is neither a flash_a55 symlink nor backed by flash_a55 test metadata" >&2
+            exit 1
+        fi
+        ;;
 esac
 
 [ ! -e "$output" ] || { echo "refusing existing output: $output" >&2; exit 1; }
