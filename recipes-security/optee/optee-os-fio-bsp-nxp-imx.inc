@@ -26,6 +26,10 @@ EXTRA_OEMAKE:append:mx8qm-nxp-bsp = " \
 EXTRA_OEMAKE:append:mx93-nxp-bsp = " \
     CFG_DT=y CFG_EXTERNAL_DTB_OVERLAY=y CFG_DT_ADDR=0x83200000 \
 "
+EXTRA_OEMAKE:append:mx95-nxp-bsp = " \
+    CFLAGS32='${DEBUG_PREFIX_MAP}' CFLAGS64='${DEBUG_PREFIX_MAP}' \
+    AFLAGS='${DEBUG_PREFIX_MAP}' \
+"
 # Machine Settings
 EXTRA_OEMAKE:append:imx8qm-mek = " \
     CFG_NXP_CAAM=y CFG_NXP_CAAM_RNG_DRV=y \
