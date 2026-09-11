@@ -345,6 +345,18 @@ PREFERRED_VERSION_optee-os-fio:mx95-nxp-bsp = "4.8.0-imx"
 PREFERRED_VERSION_optee-os-fio-mfgtool:mx95-nxp-bsp = "4.8.0-imx"
 PREFERRED_VERSION_optee-os-tadevkit:mx95-nxp-bsp = "4.8.0-imx"
 
+# meta-nxp-otbr modifies IMAGE_INSTALL globally from its layer.conf.  Neutralise
+# that side effect for i.MX95: product images select the OTBR packagegroup from
+# their own image policy, while unrelated and recovery images remain unchanged.
+# Runtime dependencies pull the Boost libraries actually needed; development
+# and static-library packages must never be injected into shipped images.
+IMAGE_INSTALL:remove:mx95-nxp-bsp = " \
+    boost \
+    boost-dev \
+    boost-staticdev \
+    packagegroup-nxp-otbr \
+"
+
 # NXP 6.12 builds the DDR OEI by default; TCM is opt-in.
 OEI_CONFIGS:mx95-nxp-bsp = "ddr ${@bb.utils.filter('PACKAGECONFIG', 'tcm', d)}"
 

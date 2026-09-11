@@ -87,18 +87,9 @@ IMXBOOT_TARGETS:imx95-frdm-evk = "flash_all"
 IMXBOOT_TARGETS:imx95-15x15-lpddr4x-frdm = "flash_all"
 PREFERRED_VERSION_u-boot-fio-mfgtool:mx95-nxp-bsp = "imx-2025.04"
 
-# meta-nxp-otbr appends its runtime and Boost development packages to
-# IMAGE_INSTALL globally.  That is appropriate for an IW612 product image,
-# but it also affects the deliberately small manufacturing initramfs and makes
-# it too large to boot.  The mfgtool distro includes this file, so keep the
-# recovery image limited to the packages needed for programming.
-IMAGE_INSTALL:remove:mx95-nxp-bsp = " \
-    boost \
-    boost-dev \
-    boost-staticdev \
-    packagegroup-nxp-otbr \
-    packagegroup-fsl-optee-imx \
-"
+# OP-TEE is required in the boot chain, but its test/client packagegroup is not
+# part of the programming userspace and needlessly inflates the initramfs.
+IMAGE_INSTALL:remove:mx95-nxp-bsp = "packagegroup-fsl-optee-imx"
 MFGTOOL_FLASH_IMAGE:imx95-frdm-evk ?= "lmp-factory-image"
 
 # iMX8QM
