@@ -26,19 +26,22 @@ FB: ucmd mmc dev ${mmcdev} 0
 # eMMC user-area target. This guards the Foundries WIC programming contract.
 FB: getvar partition-size:all
 FB: getvar partition-type:all
-# Validate both intact AHAB container targets before the first persistent
-# write. The separately signed FIT belongs in eMMC user-area LBA 0x300.
+# Validate the native recovery target and prove that both eMMC boot hardware
+# partitions can be selected before the first persistent write.  NXP's
+# flash_all recovery config splits its native bootloader alias at sector 0x300,
+# so it reports 0x60000 bytes.  We deliberately do not flash through that alias:
+# the intact production container is written directly to boot0/boot1 and the
+# separately signed FIT belongs in eMMC user-area LBA 0x300.
 FB: getvar partition-size:bootloader
 FB: getvar partition-type:bootloader
-FB: getvar partition-size:bootloader_s
-FB: getvar partition-type:bootloader_s
 # libuuu records each getvar response under its upper-case @NAME@ key.  Reject
-# a recovery U-Boot which exposes the incomplete legacy layout before writing
-# the multi-gigabyte WIC.
-FB: if @PARTITION-SIZE:BOOTLOADER@ != 0X400000 then ucmd false
+# a recovery U-Boot which does not match the NXP i.MX95 flash_all layout before
+# writing the multi-gigabyte WIC.
+FB: if @PARTITION-SIZE:BOOTLOADER@ != 0X60000 then ucmd false
 FB: if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false
-FB: if @PARTITION-SIZE:BOOTLOADER_S@ != 0X400000 then ucmd false
-FB: if @PARTITION-TYPE:BOOTLOADER_S@ != RAW then ucmd false
+FB: ucmd mmc dev ${mmcdev} 1
+FB: ucmd mmc dev ${mmcdev} 2
+FB: ucmd mmc dev ${mmcdev} 0
 # Download the production payloads to RAM and compare their actual sizes with
 # the asserted live slots.  FB download sets U-Boot's ${filesize}; ucmd failure
 # propagates to UUU.  These are non-persistent transfers and remain before WIC.
@@ -51,8 +54,13 @@ FB: ucmd if itest ${filesize} -le 1c0000; then true; else false; fi
 # target so GPT, partitions and required gaps retain the generated WIC layout.
 FB[-t 1800000]: flash -raw2sparse all ../@@MFGTOOL_FLASH_IMAGE@@-@@MACHINE@@@@IMAGE_NAME_SUFFIX@@.wic.gz/*
 # Install the production boot chain after the Foundries partition image.
-FB: flash bootloader ../imx-boot-@@MACHINE@@
-FB: flash bootloader_s ../imx-boot-@@MACHINE@@
+FB: download -f ../imx-boot-@@MACHINE@@
+FB: ucmd setexpr boot_blkcnt ${filesize} + 0x1ff
+FB: ucmd setexpr boot_blkcnt ${boot_blkcnt} / 0x200
+FB: ucmd mmc dev ${mmcdev} 1
+FB: ucmd mmc write ${loadaddr} 0x0 ${boot_blkcnt}
+FB: ucmd mmc dev ${mmcdev} 2
+FB: ucmd mmc write ${loadaddr} 0x0 ${boot_blkcnt}
 FB: download -f ../u-boot-@@MACHINE@@.itb
 FB: ucmd setexpr fit_blkcnt ${filesize} + 0x1ff
 FB: ucmd setexpr fit_blkcnt ${fit_blkcnt} / 0x200

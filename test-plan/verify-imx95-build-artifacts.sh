@@ -108,10 +108,10 @@ else
     bad "production imx-boot exceeds the 4 MiB bootloader slot"
 fi
 if [ -s "${deploy}/u-boot-${machine}.itb" ] &&
-   [ "$(stat -Lc '%s' "${deploy}/u-boot-${machine}.itb")" -le "$((0x3a0000))" ]; then
-    ok "production U-Boot FIT fits the 0x3a0000-byte bootloader2 slot"
+   [ "$(stat -Lc '%s' "${deploy}/u-boot-${machine}.itb")" -le "$((0x1c0000))" ]; then
+    ok "production U-Boot FIT fits the 0x1c0000-byte user-area slot"
 else
-    bad "production U-Boot FIT exceeds the 0x3a0000-byte bootloader2 slot"
+    bad "production U-Boot FIT exceeds the 0x1c0000-byte user-area slot"
 fi
 need_file "lmp-boot-firmware/imx-boot"
 need_file "lmp-boot-firmware/u-boot.itb"
@@ -141,11 +141,17 @@ done
 if [ "$product" -eq 1 ]; then
     for package in \
         gstreamer1.0-plugins-bad-kms \
+        imx-secure-enclave \
+        libcamera \
+        libcamera-gst \
         mdns \
         mlanutl \
+        neutron \
         otbr-iwxxx \
+        packagegroup-partner-nxp-imx95-runtime \
         packagegroup-nxp-otbr \
         tayga \
+        tensorflow-lite-neutron-delegate \
         waydroid \
         weston \
         zigbee-rcp-apps \
@@ -208,20 +214,18 @@ if [ "$mfgtool" -eq 1 ]; then
         if grep -Fq 'getvar partition-size:all' "$full_script" &&
            grep -Fq 'getvar partition-type:all' "$full_script" &&
            grep -Fq 'getvar partition-size:bootloader' "$full_script" &&
-           grep -Fq 'getvar partition-size:bootloader_s' "$full_script" &&
-           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER@ != 0X400000 then ucmd false' "$full_script" &&
+           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER@ != 0X60000 then ucmd false' "$full_script" &&
            grep -Fq 'if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false' "$full_script" &&
-           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER_S@ != 0X400000 then ucmd false' "$full_script" &&
-           grep -Fq 'if @PARTITION-TYPE:BOOTLOADER_S@ != RAW then ucmd false' "$full_script" &&
+           grep -Fq 'mmc dev ${mmcdev} 1' "$full_script" &&
+           grep -Fq 'mmc dev ${mmcdev} 2' "$full_script" &&
            grep -Fq 'download -f ../imx-boot-imx95-frdm-evk' "$full_script" &&
            grep -Fq 'itest ${filesize} -le 400000' "$full_script" &&
            grep -Fq 'download -f ../u-boot-imx95-frdm-evk.itb' "$full_script" &&
            grep -Fq 'itest ${filesize} -le 1c0000' "$full_script" &&
            grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$full_script" &&
-           grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$full_script" &&
-           grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$full_script" &&
+           grep -Fq 'mmc write ${loadaddr} 0x0 ${boot_blkcnt}' "$full_script" &&
            grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$full_script" &&
-           ! grep -Fq 'flash bootloader2 ' "$full_script"; then
+           ! grep -Eq 'flash bootloader(2)?(_s)? ' "$full_script"; then
             last_preflight=$(grep -nF 'itest ${filesize} -le 1c0000' "$full_script" | tail -n 1 | cut -d: -f1)
             first_write=$(grep -nF 'flash -raw2sparse all ' "$full_script" | head -n 1 | cut -d: -f1)
             if [ -n "$last_preflight" ] && [ -n "$first_write" ] && [ "$last_preflight" -lt "$first_write" ]; then
@@ -240,10 +244,11 @@ if [ "$mfgtool" -eq 1 ]; then
             bad "verify_image.uuu does not retain separate aligned WIC read-back"
         fi
 
-        if grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$bootloader_script" &&
-           grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bootloader_script" &&
+        if grep -Fq 'mmc dev ${mmcdev} 1' "$bootloader_script" &&
+           grep -Fq 'mmc dev ${mmcdev} 2' "$bootloader_script" &&
+           grep -Fq 'mmc write ${loadaddr} 0x0 ${boot_blkcnt}' "$bootloader_script" &&
            grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$bootloader_script" &&
-           ! grep -Fq 'flash bootloader2 ' "$bootloader_script" &&
+           ! grep -Eq 'flash bootloader(2)?(_s)? ' "$bootloader_script" &&
            ! grep -Fq 'flash -raw2sparse all ' "$bootloader_script"; then
             ok "bootloader.uuu updates intact containers and the raw user-area FIT without writing WIC partitions"
         else

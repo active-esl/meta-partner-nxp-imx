@@ -76,10 +76,11 @@ if cmp -s "$bundle/u-boot-mfgtool.itb" "${tmpdir}/u-boot-${machine}.itb"; then
     exit 1
 fi
 
-if ! grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$bundle/bootloader.uuu" ||
-   ! grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bundle/bootloader.uuu" ||
+if ! grep -Fq 'mmc dev ${mmcdev} 1' "$bundle/bootloader.uuu" ||
+   ! grep -Fq 'mmc dev ${mmcdev} 2' "$bundle/bootloader.uuu" ||
+   ! grep -Fq 'mmc write ${loadaddr} 0x0 ${boot_blkcnt}' "$bundle/bootloader.uuu" ||
    ! grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$bundle/bootloader.uuu" ||
-   grep -Fq 'flash bootloader2 ' "$bundle/bootloader.uuu" ||
+   grep -Eq 'flash bootloader(2)?(_s)? ' "$bundle/bootloader.uuu" ||
    grep -Fq 'flash -raw2sparse all ' "$bundle/bootloader.uuu"; then
     echo "unsafe bundle: bootloader.uuu does not retain the i.MX95 split boot layout" >&2
     exit 1
@@ -95,19 +96,18 @@ if ! grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$bundle/full_image.uuu" ||
    ! grep -Fq 'getvar partition-size:all' "$bundle/full_image.uuu" ||
    ! grep -Fq 'getvar partition-type:all' "$bundle/full_image.uuu" ||
    ! grep -Fq 'getvar partition-size:bootloader' "$bundle/full_image.uuu" ||
-   ! grep -Fq 'getvar partition-size:bootloader_s' "$bundle/full_image.uuu" ||
-   ! grep -Fq 'if @PARTITION-SIZE:BOOTLOADER@ != 0X400000 then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-SIZE:BOOTLOADER@ != 0X60000 then ucmd false' "$bundle/full_image.uuu" ||
    ! grep -Fq 'if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false' "$bundle/full_image.uuu" ||
-   ! grep -Fq 'if @PARTITION-SIZE:BOOTLOADER_S@ != 0X400000 then ucmd false' "$bundle/full_image.uuu" ||
-   ! grep -Fq 'if @PARTITION-TYPE:BOOTLOADER_S@ != RAW then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'mmc dev ${mmcdev} 1' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'mmc dev ${mmcdev} 2' "$bundle/full_image.uuu" ||
    ! grep -Fq 'download -f ../imx-boot-imx95-frdm-evk' "$bundle/full_image.uuu" ||
    ! grep -Fq 'itest ${filesize} -le 400000' "$bundle/full_image.uuu" ||
    ! grep -Fq 'download -f ../u-boot-imx95-frdm-evk.itb' "$bundle/full_image.uuu" ||
    ! grep -Fq 'itest ${filesize} -le 1c0000' "$bundle/full_image.uuu" ||
    ! grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$bundle/full_image.uuu" ||
-   ! grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'mmc write ${loadaddr} 0x0 ${boot_blkcnt}' "$bundle/full_image.uuu" ||
    ! grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$bundle/full_image.uuu" ||
-   grep -Fq 'flash bootloader2 ' "$bundle/full_image.uuu"; then
+   grep -Eq 'flash bootloader(2)?(_s)? ' "$bundle/full_image.uuu"; then
     echo "unsafe bundle: full_image.uuu does not retain the MX95 and Foundries flows" >&2
     exit 1
 fi

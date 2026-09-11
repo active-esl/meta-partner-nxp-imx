@@ -100,6 +100,10 @@ repos:
     path: build/layers/meta-imx
     layers:
       meta-imx-bsp:
+      # Keep the platform runtimes in NXP's pinned release rather than
+      # duplicating camera and machine-learning recipes in the partner layer.
+      meta-imx-sdk:
+      meta-imx-ml:
 
   # The complete product image selects the onboard IW612 Thread/Zigbee
   # consumers, so their matching NXP recipes belong to the main product graph
@@ -132,7 +136,9 @@ local_conf_header:
     DEV_MODE = "1"
     NXP_WIFI_SECURE_FIRMWARE = "0"
 
-    UBOOT_SIGN_ENABLE = "0"
+    # Match the BSP's full override scope.  An unqualified assignment loses to
+    # UBOOT_SIGN_ENABLE:sota:mx95-generic-bsp and leaves strict SPL FIT checks on.
+    UBOOT_SIGN_ENABLE:sota:mx95-generic-bsp = "0"
     UBOOT_SPL_SIGN_ENABLE = "0"
     TF_A_SIGN_ENABLE = "0"
     OPTEE_TA_SIGN_ENABLE = "0"
