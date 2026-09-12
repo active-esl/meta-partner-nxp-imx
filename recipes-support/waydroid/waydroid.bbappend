@@ -1,4 +1,5 @@
 SUMMARY = "Waydroid uses a container-based approach to boot a full Android system"
+FILESEXTRAPATHS:prepend := "${THISDIR}/${BPN}:"
 DESCRIPTION = "Runtime for Android applications which runs a full Android system \
     in a container using Linux namespaces (user, ipc, net, mount) to \
     separate the Android system fully from the host."
