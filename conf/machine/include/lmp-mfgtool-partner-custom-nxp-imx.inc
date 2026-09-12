@@ -86,6 +86,14 @@ KERNEL_CLASSES:mx95-generic-bsp = " kernel-lmp-fitimage "
 IMXBOOT_TARGETS:imx95-frdm-evk = "flash_all"
 IMXBOOT_TARGETS:imx95-15x15-lpddr4x-frdm = "flash_all"
 PREFERRED_VERSION_u-boot-fio-mfgtool:mx95-nxp-bsp = "imx-2025.04"
+
+# OP-TEE is required in the boot chain, but its test/client packagegroup and
+# the product OTBR stack are not part of the programming userspace and
+# needlessly inflate the initramfs.
+IMAGE_INSTALL:remove:mx95-nxp-bsp = " \
+    packagegroup-fsl-optee-imx \
+    packagegroup-nxp-otbr \
+"
 MFGTOOL_FLASH_IMAGE:imx95-frdm-evk ?= "lmp-factory-image"
 
 # iMX8QM

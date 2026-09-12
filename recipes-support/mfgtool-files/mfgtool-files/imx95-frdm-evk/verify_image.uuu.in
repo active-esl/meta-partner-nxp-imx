@@ -1,7 +1,9 @@
-uuu_version 1.4.149
+uuu_version 1.5.201
 
 # Optional, standalone read-back verification. This is deliberately separate
 # from full_image.uuu so normal production programming does not pay the cost.
+# UUU 1.5.201 parses AHAB container v2 plus the V2X header and calculates the
+# correct split between the SDPS ROM/SPL and SDPV application transfers.
 SDP: boot -f imx-boot-mfgtool
 SDPS: boot -f imx-boot-mfgtool
 

@@ -33,7 +33,15 @@ done
 boot_target=$(readlink "${deploy}/imx-boot-${machine}" 2>/dev/null || true)
 case "$boot_target" in
     *flash_a55*) ;;
-    *) echo "production imx-boot does not resolve to flash_a55: ${boot_target:-not a symlink}" >&2; exit 1 ;;
+    *)
+        # Foundries downloads preserve the selected BitBake variables in
+        # testdata.json, but not the deploy-directory symlink itself.
+        if ! grep -Eq '"IMXBOOT_TARGETS"[[:space:]]*:[[:space:]]*"flash_a55"' "${deploy}/${image}.testdata.json" 2>/dev/null ||
+           ! grep -Eq '"IMXBOOT_TARGETS:imx95-frdm-evk"[[:space:]]*:[[:space:]]*"flash_a55"' "${deploy}/${image}.testdata.json" 2>/dev/null; then
+            echo "production imx-boot is neither a flash_a55 symlink nor backed by flash_a55 test metadata" >&2
+            exit 1
+        fi
+        ;;
 esac
 
 [ ! -e "$output" ] || { echo "refusing existing output: $output" >&2; exit 1; }
@@ -59,6 +67,7 @@ tar -xzf "${tmpdir}/mfgtool-files-${machine}.tar.gz" -C "$tmpdir"
 bundle="${tmpdir}/${bundle_dir}"
 for file in \
     "$bundle/uuu" \
+    "$bundle/bootloader.uuu" \
     "$bundle/full_image.uuu" \
     "$bundle/verify_image.uuu" \
     "$bundle/imx-boot-mfgtool" \
@@ -75,21 +84,69 @@ if cmp -s "$bundle/u-boot-mfgtool.itb" "${tmpdir}/u-boot-${machine}.itb"; then
     exit 1
 fi
 
-if ! grep -Fq "write -f ../${image}.wic.gz/*" "$bundle/full_image.uuu" ||
-   ! grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$bundle/full_image.uuu" ||
-   ! grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$bundle/full_image.uuu"; then
-    echo "unsafe bundle: full_image.uuu does not retain the complete Foundries flow" >&2
+if ! grep -Fq 'mmc dev ${mmcdev} 1' "$bundle/bootloader.uuu" ||
+   ! grep -Fq 'mmc dev ${mmcdev} 2' "$bundle/bootloader.uuu" ||
+   ! grep -Fq 'mmc write ${loadaddr} 0x0 ${boot_blkcnt}' "$bundle/bootloader.uuu" ||
+   ! grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$bundle/bootloader.uuu" ||
+   grep -Eq 'flash bootloader(2)?(_s)? ' "$bundle/bootloader.uuu" ||
+   grep -Fq 'flash -raw2sparse all ' "$bundle/bootloader.uuu"; then
+    echo "unsafe bundle: bootloader.uuu does not retain the i.MX95 split boot layout" >&2
     exit 1
 fi
-if ! grep -Fq "crc -f ../${image}.wic.gz/*" "$bundle/verify_image.uuu" ||
+
+if ! "$bundle/uuu" -lsusb 2>&1 | grep -Fq 'libuuu_1.5.201'; then
+    echo "unsafe bundle: UUU cannot parse i.MX95 AHAB v2 plus V2X containers" >&2
+    exit 1
+fi
+
+if ! grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'getvar partition-size:all' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'getvar partition-type:all' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'getvar partition-size:bootloader' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-SIZE:BOOTLOADER@ != 0X60000 then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'mmc dev ${mmcdev} 1' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'mmc dev ${mmcdev} 2' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'download -f ../imx-boot-imx95-frdm-evk' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'itest ${filesize} -le 400000' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'download -f ../u-boot-imx95-frdm-evk.itb' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'itest ${filesize} -le 1c0000' "$bundle/full_image.uuu" ||
+   ! grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$bundle/full_image.uuu" ||
+   ! grep -Fq 'mmc write ${loadaddr} 0x0 ${boot_blkcnt}' "$bundle/full_image.uuu" ||
+   ! grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$bundle/full_image.uuu" ||
+   grep -Eq 'flash bootloader(2)?(_s)? ' "$bundle/full_image.uuu"; then
+    echo "unsafe bundle: full_image.uuu does not retain the MX95 and Foundries flows" >&2
+    exit 1
+fi
+
+last_preflight=$(grep -nF 'itest ${filesize} -le 1c0000' "$bundle/full_image.uuu" | tail -n 1 | cut -d: -f1)
+first_write=$(grep -nF 'flash -raw2sparse all ' "$bundle/full_image.uuu" | head -n 1 | cut -d: -f1)
+if [ -z "$last_preflight" ] || [ -z "$first_write" ] || [ "$last_preflight" -ge "$first_write" ]; then
+    echo "unsafe bundle: complete i.MX95 preflight must precede the first persistent write" >&2
+    exit 1
+fi
+
+if [ "$(stat -Lc '%s' "${tmpdir}/imx-boot-${machine}")" -gt "$((0x400000))" ]; then
+    echo "unsafe bundle: production imx-boot exceeds the 4 MiB bootloader slot" >&2
+    exit 1
+fi
+if [ "$(stat -Lc '%s' "${tmpdir}/u-boot-${machine}.itb")" -gt "$((0x1c0000))" ]; then
+    echo "unsafe bundle: production U-Boot FIT exceeds the 0x1c0000-byte user-area slot" >&2
+    exit 1
+fi
+if ! grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$bundle/verify_image.uuu" ||
+   ! grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl' "$bundle/verify_image.uuu" ||
+   ! grep -Fq "crc -f ../${image}.wic.gz/*" "$bundle/verify_image.uuu" ||
    ! grep -Fq -- '-skip 0x400000 -seek 0x400000' "$bundle/verify_image.uuu"; then
-    echo "unsafe bundle: optional verification is absent or misaligned" >&2
+    echo "unsafe bundle: optional verification or MX95 boot staging is invalid" >&2
     exit 1
 fi
 
 (
     cd "$tmpdir"
     "./${bundle_dir}/uuu" -dry "./${bundle_dir}/full_image.uuu" >/dev/null
+    "./${bundle_dir}/uuu" -dry "./${bundle_dir}/bootloader.uuu" >/dev/null
     "./${bundle_dir}/uuu" -dry "./${bundle_dir}/verify_image.uuu" >/dev/null
     sha256sum \
         "${image}.wic.gz" \
@@ -101,6 +158,7 @@ fi
         "program-imx95.sh" \
         "${bundle_dir}/uuu" \
         "${bundle_dir}/full_image.uuu" \
+        "${bundle_dir}/bootloader.uuu" \
         "${bundle_dir}/verify_image.uuu" \
         "${bundle_dir}/imx-boot-mfgtool" \
         "${bundle_dir}/u-boot-mfgtool.itb" \
@@ -113,4 +171,5 @@ tmpdir=
 printf 'Programming bundle ready: %s\n' "$output"
 printf 'Preflight:\n  cd %s && ./program-imx95.sh check\n' "$output"
 printf 'Program (no read-back):\n  cd %s && ./program-imx95.sh program\n' "$output"
+printf 'Boot firmware only (retain WIC/rootfs):\n  cd %s && ./program-imx95.sh bootloader\n' "$output"
 printf 'Optional verification:\n  cd %s && ./program-imx95.sh verify\n' "$output"

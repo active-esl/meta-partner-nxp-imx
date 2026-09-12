@@ -1,6 +1,6 @@
 # FRDM-IMX95 v96 partner-layer mfgtools build r15
 
-- Result: **PASS — clean-workdir recovery build, matched artifact gate and local USB preflight**
+- Result: **SUPERSEDED — build/static gates passed, hardware exposed an MX95 SDPS script defect**
 - Partner source: `4af6181c7ab4ffbc0e319c516d83d29a35d5f3f6`
 - Build log: `ai-tools:/srv/yocto/frdm-imx95-product-v96/imx95-v96-mfgtool-partner4af6181-r15.log`
 - Terminal time: 2026-09-10 11:14:13 UTC
@@ -43,7 +43,7 @@ and copied unchanged to:
 
 `/data_drive/esl/frdm-imx95-programming/frdm-imx95-v96-product-r8-mfg-r15`
 
-The combined verifier passed 48 checks with no failures. It proves the full
+The original combined verifier passed 48 checks with no failures. It proved the full
 Foundries WIC/OSTree/product set, expected display/Waydroid/IW612 packages,
 recovery archive members, complete partition-programming script, separate
 optional read-back script, distinct recovery/production boot payloads, and
@@ -68,5 +68,23 @@ successful UUU dry-runs. The 3,223-byte verifier log has SHA-256
 The guarded local check revalidated every checksum and detected exactly one
 i.MX95 BootROM device: `1fc9:015d`, serial `D38D0250C88A43CB`. A programming
 attempt then stopped before UUU was launched because local `sudo` requires an
-interactive fingerprint/password. Therefore no storage write is claimed by
-this report. Full programming, boot and peripheral evidence remain open.
+interactive fingerprint/password.
+
+After interactive authentication, two subsequent attempts produced
+byte-identical 22,203-byte UUU transcripts (SHA-256
+`114f2b55c6cc33d8cb44413360ca7af947bc36d737d04e1dc48c472b39090b8c`)
+and failed at 35% with
+`HID(W): LIBUSB_ERROR_IO` during `SDPS: boot -f imx-boot-mfgtool`. Kernel USB
+evidence shows that each attempt successfully changed the target from MX95
+ROM `1fc9:015d` to SPL1 SDPV `1fc9:0151`, then UUU stopped. No FB command or
+eMMC write occurred.
+
+The first diagnosis blamed missing `-scanterm -scanlimited` script arguments,
+but r16 disproved it: those arguments do not make UUU 1.5.179 understand a raw
+i.MX95 `flash_all` file. Source inspection then established the real cause.
+The 6.12 image uses AHAB container-header v2 and a V2X header; UUU gained those
+parsers only in 1.5.197 and 1.5.201 respectively. Version 1.5.179 therefore
+calculates the SDPS payload as the complete file and overruns the ROM/SPL
+handoff. The r15 archive and programming bundle are not hardware-valid and
+must not be used. This negative result is retained because it demonstrates
+that UUU dry-run/static gates do not prove an i.MX95 staged USB handoff.

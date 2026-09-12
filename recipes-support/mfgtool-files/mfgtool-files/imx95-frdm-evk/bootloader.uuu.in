@@ -1,0 +1,57 @@
+uuu_version 1.5.201
+
+# Recovery-boot the board using the matched flash_all container, then replace
+# only the production boot firmware. The WIC partitions and OSTree/root
+# filesystem are deliberately untouched; the raw FIT slot precedes the GPT
+# partitions in the eMMC user area.
+SDP: boot -f imx-boot-mfgtool
+SDPS: boot -f imx-boot-mfgtool
+
+SDPU: delay 1000
+SDPU: write -f imx-boot-mfgtool -offset 0x57c00
+SDPU: jump
+
+SDPV: delay 1000
+SDPV: write -f imx-boot-mfgtool -skipspl
+SDPV: jump
+
+FB: delay 5000
+FB: ucmd setenv fastboot_dev mmc
+FB: ucmd setenv emmc_dev 0
+FB: ucmd setenv mmcdev 0
+FB: ucmd setenv loadaddr 0x92800000
+FB: ucmd mmc dev ${mmcdev} 0
+
+# Assert the NXP flash_all recovery layout, both eMMC boot hardware partitions
+# and both payload sizes before the first write.  The native bootloader alias is
+# split at sector 0x300 and is too small for the intact production container;
+# redundant AHAB containers are therefore written with direct mmc commands.
+FB: getvar partition-size:bootloader
+FB: getvar partition-type:bootloader
+FB: if @PARTITION-SIZE:BOOTLOADER@ != 0X60000 then ucmd false
+FB: if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false
+FB: ucmd mmc dev ${mmcdev} 1
+FB: ucmd mmc dev ${mmcdev} 2
+FB: ucmd mmc dev ${mmcdev} 0
+FB: download -f ../imx-boot-@@MACHINE@@
+FB: ucmd if itest ${filesize} -le 400000; then true; else false; fi
+FB: download -f ../u-boot-@@MACHINE@@.itb
+FB: ucmd if itest ${filesize} -le 1c0000; then true; else false; fi
+
+FB: download -f ../imx-boot-@@MACHINE@@
+FB: ucmd setexpr boot_blkcnt ${filesize} + 0x1ff
+FB: ucmd setexpr boot_blkcnt ${boot_blkcnt} / 0x200
+FB: ucmd mmc dev ${mmcdev} 1
+FB: ucmd mmc write ${loadaddr} 0x0 ${boot_blkcnt}
+FB: ucmd mmc dev ${mmcdev} 2
+FB: ucmd mmc write ${loadaddr} 0x0 ${boot_blkcnt}
+# `download` sets filesize. Round it up to 512-byte blocks and place the FIT
+# where CONFIG_SYS_MMCSD_RAW_MODE_U_BOOT_SECTOR expects it in the user area.
+FB: download -f ../u-boot-@@MACHINE@@.itb
+FB: ucmd setexpr fit_blkcnt ${filesize} + 0x1ff
+FB: ucmd setexpr fit_blkcnt ${fit_blkcnt} / 0x200
+FB: ucmd mmc dev ${mmcdev} 0
+FB: ucmd mmc write ${loadaddr} 0x300 ${fit_blkcnt}
+FB: ucmd if env exists emmc_ack; then ; else setenv emmc_ack 0; fi;
+FB: ucmd mmc partconf 0 ${emmc_ack} 1 0
+FB: done

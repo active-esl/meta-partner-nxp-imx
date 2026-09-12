@@ -100,6 +100,28 @@ repos:
     path: build/layers/meta-imx
     layers:
       meta-imx-bsp:
+      # Keep the platform runtimes in NXP's pinned release rather than
+      # duplicating camera and machine-learning recipes in the partner layer.
+      meta-imx-sdk:
+      meta-imx-ml:
+
+  # The complete product image selects the onboard IW612 Thread/Zigbee
+  # consumers, so their matching NXP recipes belong to the main product graph
+  # rather than being supplied only by a derived component smoke test.
+  meta-nxp-connectivity:
+    url: https://github.com/nxp-imx/meta-nxp-connectivity.git
+    commit: 14a32aa7467f58257e3bb93a5c0fa443c70ae1ae
+    path: build/layers/meta-nxp-connectivity
+    layers:
+      meta-nxp-zigbee-rcp:
+      meta-nxp-otbr:
+    patches:
+      0001-scarthgap-compatibility:
+        repo: meta-partner-nxp-imx
+        path: kas/patches/meta-nxp-connectivity/0001-nxp-otbr-declare-scarthgap-compatibility.patch
+      0002-zigbee-scarthgap-compatibility:
+        repo: meta-partner-nxp-imx
+        path: kas/patches/meta-nxp-connectivity/0002-nxp-zigbee-rcp-declare-scarthgap-compatibility.patch
 
   meta-partner-nxp-imx:
     # kas-container mounts the Git checkout containing this configuration at
@@ -114,7 +136,9 @@ local_conf_header:
     DEV_MODE = "1"
     NXP_WIFI_SECURE_FIRMWARE = "0"
 
-    UBOOT_SIGN_ENABLE = "0"
+    # Match the BSP's full override scope.  An unqualified assignment loses to
+    # UBOOT_SIGN_ENABLE:sota:mx95-generic-bsp and leaves strict SPL FIT checks on.
+    UBOOT_SIGN_ENABLE:sota:mx95-generic-bsp = "0"
     UBOOT_SPL_SIGN_ENABLE = "0"
     TF_A_SIGN_ENABLE = "0"
     OPTEE_TA_SIGN_ENABLE = "0"

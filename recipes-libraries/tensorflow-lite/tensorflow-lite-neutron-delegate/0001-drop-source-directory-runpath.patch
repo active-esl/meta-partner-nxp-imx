@@ -1,0 +1,30 @@
+From 56810804b627fd4e841f8432925990d846310c60 Mon Sep 17 00:00:00 2001
+From: Active ESL <engineering@active-esl.com>
+Date: Fri, 11 Sep 2026 11:00:00 +0100
+Subject: [PATCH] cmake: drop source directory from runtime search path
+
+NeutronConverter and NeutronDriver are provided by the Yocto recipe sysroot.
+Adding the delegate source directory to the linker search path is unnecessary
+and makes CMake emit the build directory as a RUNPATH in the installed shared
+library.
+
+Upstream-Status: Pending
+Signed-off-by: Active ESL <engineering@active-esl.com>
+---
+ CMakeLists.txt | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index acf6f3d..3f7102b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -46,7 +46,6 @@ list(APPEND NEUTRON_DELEGATE_SRCS
+ include_directories(${CMAKE_BINARY_DIR}/flatbuffers/include)
+ include_directories("${tensorflow_SOURCE_DIR}")
+ include_directories("${DELEGATE_SRC_DIR}/include")
+-link_directories(${DELEGATE_SRC_DIR})
+ 
+ add_library(neutron_delegate SHARED ${NEUTRON_DELEGATE_SRCS})
+ 
+-- 
+2.43.0
