@@ -18,6 +18,7 @@ validation_group="$repo/recipes-core/packagegroups/packagegroup-partner-nxp-imx9
 neutron_append="$repo/recipes-libraries/tensorflow-lite/tensorflow-lite-neutron-delegate_2.16.2.bbappend"
 tflite_append="$repo/recipes-framework/tensorflow/tensorflow-lite_2.%.bbappend"
 g2d_samples_append="$repo/recipes-graphics/imx-g2d/imx-g2d-samples_%.bbappend"
+alsa_plugins_append="$repo/recipes-multimedia/alsa/imx-alsa-plugins_git.bbappend"
 machine_conf="$repo/conf/machine/imx95-frdm-evk.conf"
 kas_smoke="$repo/kas/lmp-imx95-frdm-evk-6.12-partner.yml"
 kas_v96="$repo/kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml"
@@ -106,7 +107,10 @@ for kas_config in "$kas_smoke" "$kas_v96"; do
     grep -Fq 'meta-imx-ml:' "$kas_config"
 done
 grep -Fq 'imx95-neo-isp imx95-neutron imx95-ele-hsm' "$machine_conf"
+grep -Fq 'PREFERRED_VERSION_gcc-arm-none-eabi-native = "14.2.rel1"' "$machine_conf"
 grep -Fq 'meta-imx-sdk/recipes-fsl/fsl-rc-local/fsl-rc-local.bbappend' "$machine_conf"
+grep -Fq 'EXTRA_OECONF:imx95-frdm-evk = ""' "$alsa_plugins_append"
+grep -Fq 'CFLAGS:append:imx95-frdm-evk = " ${INCLUDE_DIR}"' "$alsa_plugins_append"
 grep -Fq 'packagegroup-partner-nxp-imx95-runtime' "$partner_image"
 grep -Fq "oe.utils.conditional('DEV_MODE', '1', 'packagegroup-partner-nxp-imx95-validation'" "$partner_image"
 for package in imx-secure-enclave libcamera libcamera-gst neutron tensorflow-lite-neutron-delegate; do
