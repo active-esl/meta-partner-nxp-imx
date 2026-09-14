@@ -13,14 +13,14 @@ This matches the separate writable metadata partition available on a normal
 Android device and prevents early system_server failures such as the missing
 RANGING permission/app-op mapping.
 ---
- tools/helpers/lxc.py | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ tools/helpers/lxc.py | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
 
 diff --git a/tools/helpers/lxc.py b/tools/helpers/lxc.py
 index 3dcc5cd..018d223 100644
 --- a/tools/helpers/lxc.py
 +++ b/tools/helpers/lxc.py
-@@ -154,6 +154,16 @@ def generate_nodes_lxc_config(args):
+@@ -154,6 +154,21 @@ def generate_nodes_lxc_config(args):
      make_entry("tmpfs", "var", "tmpfs", "nodev 0 0", False)
      make_entry("tmpfs", "run", "tmpfs", "nodev 0 0", False)
  
@@ -31,6 +31,11 @@ index 3dcc5cd..018d223 100644
 +    os.makedirs(metadata_path, mode=0o770, exist_ok=True)
 +    os.chown(metadata_path, 0, 1000)  # Android AID_SYSTEM
 +    os.chmod(metadata_path, 0o770)
++    # LXC cannot create a bind target through Waydroid's read-only rootfs
++    # overlay. Supply the empty mountpoint in the writable host overlay so it
++    # is visible before LXC processes the metadata bind entry.
++    metadata_mountpoint = os.path.join(tools.config.defaults["overlay"], "metadata")
++    os.makedirs(metadata_mountpoint, mode=0o755, exist_ok=True)
 +    make_entry(metadata_path, "metadata",
 +               options="rbind,create=dir 0 0")
 +
