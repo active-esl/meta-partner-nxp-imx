@@ -1,11 +1,5 @@
-FILESEXTRAPATHS:prepend := "${THISDIR}/${BPN}:"
-
 PROVIDES += "virtual/trusted-firmware-a"
 RPROVIDES:${PN} += "virtual-trusted-firmware-a"
-
-SRC_URI:append = " \
-    file://0001-plat-imx8m-obtain-boot-set-from-bootrom-even-log.patch \
-"
 
 deploy_opteed_atf() {
     # Newer NXP TF-A releases no longer create build-optee. The matching
