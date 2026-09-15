@@ -4,6 +4,16 @@
 DEPENDS:remove = "optee-os"
 DEPENDS += "${@bb.utils.contains('MACHINE_FEATURES', 'optee', 'virtual/optee-os', '', d)}"
 
+# The NXP recipe also embeds the concrete provider in this task flag. BitBake
+# does not support override-style :remove operations on variable flags, so
+# restate the upstream dependency list with the virtual provider substituted.
+do_compile[depends] = " \
+    virtual/bootloader:do_deploy \
+    ${@' '.join('%s:do_deploy' % r for r in '${IMX_EXTRA_FIRMWARE}'.split())} \
+    imx-atf:do_deploy \
+    ${@bb.utils.contains('MACHINE_FEATURES', 'optee', 'virtual/optee-os:do_deploy', '', d)} \
+"
+
 # imx-mkimage stages inputs in ${S}/${IMX_BOOT_SOC_TARGET}, which BitBake does
 # not empty when a changed MACHINE_FEATURES value reruns do_compile.  Without
 # this guard, an OP-TEE-enabled build followed by an OP-TEE-free recovery build

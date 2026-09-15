@@ -53,6 +53,11 @@ grep -Fqx 'CONFIG_FSL_FASTBOOT_BOOTLOADER2_OFFSET=0x300' "$mfgtool_cfg"
 # can build either the Jaguar or FRDM image.
 grep -Fqx 'DEPENDS:remove = "optee-os"' "$imx_boot_append"
 grep -Fqx "DEPENDS += \"\${@bb.utils.contains('MACHINE_FEATURES', 'optee', 'virtual/optee-os', '', d)}\"" "$imx_boot_append"
+grep -Fq "virtual/optee-os:do_deploy" "$imx_boot_append"
+if grep -Eq "(^|[[:space:]'\"])optee-os:do_deploy" "$imx_boot_append"; then
+    echo "imx-boot task dependency bypasses the selected virtual OP-TEE provider" >&2
+    exit 1
+fi
 
 # Local unsigned SOTA builds must override the same scoped secure default used
 # by the BSP.  An unqualified value silently leaves SPL_FIT_SIGNATURE_STRICT on.
