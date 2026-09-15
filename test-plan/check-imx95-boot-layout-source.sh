@@ -23,6 +23,7 @@ machine_conf="$repo/conf/machine/imx95-frdm-evk.conf"
 kas_smoke="$repo/kas/lmp-imx95-frdm-evk-6.12-partner.yml"
 kas_v96="$repo/kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml"
 kas_accel="$repo/kas/lmp-v96-imx95-frdm-evk-6.12-partner-acceleration.yml"
+imx_boot_append="$repo/recipes-bsp/imx-mkimage/imx-boot_%.bbappend"
 
 for script in "$mfgdir/full_image.uuu.in" "$mfgdir/bootloader.uuu.in"; do
     # These dollar expressions are intentional literals from the UUU script.
@@ -46,6 +47,12 @@ if grep -Fqx '# CONFIG_FSL_FASTBOOT_BOOTLOADER2 is not set' "$mfgtool_cfg"; then
     exit 1
 fi
 grep -Fqx 'CONFIG_FSL_FASTBOOT_BOOTLOADER2_OFFSET=0x300' "$mfgtool_cfg"
+
+# LmP provides OP-TEE through optee-os-fio.  A direct dependency on the
+# upstream recipe makes BitBake reject the selected virtual provider before it
+# can build either the Jaguar or FRDM image.
+grep -Fqx 'DEPENDS:remove = "optee-os"' "$imx_boot_append"
+grep -Fqx "DEPENDS += \"\${@bb.utils.contains('MACHINE_FEATURES', 'optee', 'virtual/optee-os', '', d)}\"" "$imx_boot_append"
 
 # Local unsigned SOTA builds must override the same scoped secure default used
 # by the BSP.  An unqualified value silently leaves SPL_FIT_SIGNATURE_STRICT on.
