@@ -15,10 +15,10 @@ if grep -Eq '^PROVIDES.*class-(native|nativesdk)' "$uboot_tools"; then
     exit 1
 fi
 
-# Use the recipe-specific meta-clang form. The weaker toolchain-only override
-# loses to clang.bbclass and leaves GCC's -flto-partition=none in AppArmor.
-grep -Fqx 'LTO:pn-apparmor:toolchain-clang = ""' "$apparmor_append"
-if grep -Fqx 'LTO:toolchain-clang = ""' "$apparmor_append"; then
-    echo "AppArmor uses the ineffective non-recipe-specific LTO override" >&2
-    exit 1
-fi
+# AppArmor removes the generic -flto option itself, which can strand GCC's
+# partition option in the effective C/C++/link flags. Clang rejects it, so the
+# recipe-specific append must explicitly remove it from every relevant path.
+grep -Fqx 'LTO:toolchain-clang = ""' "$apparmor_append"
+for flags in CFLAGS CXXFLAGS LDFLAGS; do
+    grep -Fqx "${flags}:remove:toolchain-clang = \"-flto-partition=none\"" "$apparmor_append"
+done
