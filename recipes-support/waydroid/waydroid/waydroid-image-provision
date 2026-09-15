@@ -18,7 +18,12 @@ release_marker_matches() {
     [ "${current_sum}" = "${installed_sum}" ]
 }
 
-if [ -s "${images_dir}/system.img" ] && [ -s "${images_dir}/vendor.img" ]; then
+# Rolling-channel machines may keep any complete existing image pair.  A
+# product with an immutable release pin must continue below and prove that the
+# installed pair belongs to that release before it can be reused.
+if [ ! -r "${release_config}" ] && \
+        [ -s "${images_dir}/system.img" ] && \
+        [ -s "${images_dir}/vendor.img" ]; then
     exit 0
 fi
 
