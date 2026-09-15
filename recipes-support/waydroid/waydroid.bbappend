@@ -161,11 +161,12 @@ do_install:append:imx8mm-jaguar-screen() {
     # as a no-op post-stop hook, which exits 126 and makes every clean Waydroid
     # shutdown look like a container failure.  Use an executable no-op.
     config_base="${D}${libdir}/waydroid/data/configs/config_base"
-    if ! grep -qx 'lxc.hook.post-stop = /dev/null' "${config_base}"; then
+    if grep -qx 'lxc.hook.post-stop = /dev/null' "${config_base}"; then
+        sed -i 's|^lxc.hook.post-stop = /dev/null$|lxc.hook.post-stop = /bin/true|' \
+            "${config_base}"
+    elif ! grep -qx 'lxc.hook.post-stop = /bin/true' "${config_base}"; then
         bbfatal "unexpected Waydroid post-stop hook in ${config_base}"
     fi
-    sed -i 's|^lxc.hook.post-stop = /dev/null$|lxc.hook.post-stop = /bin/true|' \
-        "${config_base}"
 
     # The display controller is card2 on this board; card0 is the boot
     # framebuffer and card1 is the render-only Etnaviv node.  Pinning card2
@@ -198,11 +199,12 @@ do_install:append:imx95-frdm-evk() {
     # session flow, while leaving DRM connector/card selection to the FRDM
     # BSP and Weston's normal device discovery.
     config_base="${D}${libdir}/waydroid/data/configs/config_base"
-    if ! grep -qx 'lxc.hook.post-stop = /dev/null' "${config_base}"; then
+    if grep -qx 'lxc.hook.post-stop = /dev/null' "${config_base}"; then
+        sed -i 's|^lxc.hook.post-stop = /dev/null$|lxc.hook.post-stop = /bin/true|' \
+            "${config_base}"
+    elif ! grep -qx 'lxc.hook.post-stop = /bin/true' "${config_base}"; then
         bbfatal "unexpected Waydroid post-stop hook in ${config_base}"
     fi
-    sed -i 's|^lxc.hook.post-stop = /dev/null$|lxc.hook.post-stop = /bin/true|' \
-        "${config_base}"
 
     install -Dm0755 ${WORKDIR}/waydroid-product-wait \
         ${D}${libexecdir}/waydroid-product-wait
