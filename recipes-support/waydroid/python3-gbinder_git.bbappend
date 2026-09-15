@@ -22,6 +22,10 @@ DEPENDS:append:class-native = " python-native "
 
 inherit setuptools3 pkgconfig
 
+# The 1.3.1 setup.py cythonizes the extension unconditionally and no longer
+# accepts the legacy command-line --cython option inherited from the base recipe.
+SETUPTOOLS_BUILD_ARGS = "sdist"
+
 # Cython records its absolute input path in the generated C source.  Yocto
 # copies that source into ${PN}-src after compilation, so compiler debug-prefix
 # flags cannot rewrite it.  Keep the source package reproducible without
