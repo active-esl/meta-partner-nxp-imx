@@ -31,3 +31,6 @@ jobs:
 
       - name: Verify FRDM-IMX95 source and boot-layout contracts
         run: ./test-plan/check-imx95-boot-layout-source.sh
+
+      - name: Reject duplicate U-Boot providers and invalid Clang LTO flags
+        run: ./test-plan/check-provider-and-clang-source.sh
