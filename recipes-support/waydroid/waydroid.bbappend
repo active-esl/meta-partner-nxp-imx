@@ -14,7 +14,7 @@ PV = "${SPV}+git${SRCPV}"
 
 RDEPENDS:${PN} += "lxc python3-gbinder python3-pygobject libgbinder python3-pyclip python3-dbus python3-compression python3-json gobject-introspection"
 RDEPENDS:${PN}:append:imx95-frdm-evk = " apparmor ca-certificates curl"
-RDEPENDS:${PN}:append:imx8mm-jaguar-screen = " apparmor"
+RDEPENDS:${PN}:append:imx8mm-jaguar-screen = " apparmor ca-certificates curl"
 
 # these modules are directly included in android-flavored kernels
 # Note: Waydroid requires kernel >= 3.18 !
@@ -34,6 +34,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://waydroid-net.sh \
     file://waydroid-image-provision \
     file://waydroid-image-release.conf \
+    file://waydroid-image-release-imx8mm.conf \
     file://waydroid-image-provision.service \
     file://waydroid-jaguar-wait \
     file://waydroid-jaguar-container.service \
@@ -153,6 +154,8 @@ do_install:append:imx8mm-lpddr4-evk() {
 do_install:append:imx8mm-jaguar-screen() {
     install -Dm644 -t "${D}${sysconfdir}" "${WORKDIR}/gbinder.conf"
     install -m 755 ${WORKDIR}/waydroid-net.sh ${D}/usr/lib/waydroid/data/scripts/waydroid-net.sh
+    install -Dm0644 ${WORKDIR}/waydroid-image-release-imx8mm.conf \
+        ${D}${datadir}/waydroid-extra/waydroid-image-release.conf
 
     # LXC executes hook paths.  The inherited LuneOS template uses /dev/null
     # as a no-op post-stop hook, which exits 126 and makes every clean Waydroid
