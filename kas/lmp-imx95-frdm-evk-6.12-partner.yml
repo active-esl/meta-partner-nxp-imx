@@ -23,6 +23,8 @@ repos:
     path: build/layers/meta-imx
     layers:
       meta-imx-bsp:
+      meta-imx-sdk:
+      meta-imx-ml:
 
   # Keep this first extraction gate on the source work's already-proven LmP
   # baseline. A separate manifest gate validates the post-v96 layer layout.
@@ -51,7 +53,9 @@ local_conf_header:
     DEV_MODE = "1"
     NXP_WIFI_SECURE_FIRMWARE = "0"
 
-    UBOOT_SIGN_ENABLE = "0"
+    # Match the BSP's full override scope.  An unqualified assignment loses to
+    # UBOOT_SIGN_ENABLE:sota:mx95-generic-bsp and leaves strict SPL FIT checks on.
+    UBOOT_SIGN_ENABLE:sota:mx95-generic-bsp = "0"
     UBOOT_SPL_SIGN_ENABLE = "0"
     TF_A_SIGN_ENABLE = "0"
     OPTEE_TA_SIGN_ENABLE = "0"

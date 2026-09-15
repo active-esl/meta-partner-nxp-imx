@@ -4,22 +4,37 @@
 set -u
 
 usage() {
-    echo "usage: $0 DEPLOY_DIR [--product] [--mfgtool]" >&2
+    echo "usage: $0 DEPLOY_DIR [--product] [--mfgtool] [--mfgtool-archive PATH]" >&2
     exit 2
 }
 
-if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
+if [ "$#" -lt 1 ]; then
     usage
 fi
 deploy=$1
 shift
 product=0
 mfgtool=0
-for option in "$@"; do
-    case "$option" in
-        --product) product=1 ;;
-        --mfgtool) mfgtool=1 ;;
-        *) usage ;;
+mfgtool_archive_arg=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --product)
+            product=1
+            shift
+            ;;
+        --mfgtool)
+            mfgtool=1
+            shift
+            ;;
+        --mfgtool-archive)
+            [ "$#" -ge 2 ] || usage
+            mfgtool=1
+            mfgtool_archive_arg=$2
+            shift 2
+            ;;
+        *)
+            usage
+            ;;
     esac
 done
 
@@ -82,10 +97,32 @@ need_file "imx-boot-${machine}"
 boot_target=$(readlink "${deploy}/imx-boot-${machine}" 2>/dev/null || true)
 case "$boot_target" in
     *flash_a55*) ok "production imx-boot resolves to flash_a55" ;;
-    *) bad "production imx-boot target is not flash_a55: ${boot_target:-not a symlink}" ;;
+    *)
+        # The Foundries artifact API materialises deploy-directory symlinks as
+        # regular files.  The image testdata is published alongside the binary
+        # and preserves the BitBake selection that produced it.
+        if grep -Eq '"IMXBOOT_TARGETS"[[:space:]]*:[[:space:]]*"flash_a55"' "${deploy}/${image}.testdata.json" 2>/dev/null &&
+           grep -Eq '"IMXBOOT_TARGETS:imx95-frdm-evk"[[:space:]]*:[[:space:]]*"flash_a55"' "${deploy}/${image}.testdata.json" 2>/dev/null; then
+            ok "production metadata selects flash_a55"
+        else
+            bad "production imx-boot is neither a flash_a55 symlink nor backed by flash_a55 test metadata"
+        fi
+        ;;
 esac
 
 need_file "u-boot-${machine}.itb"
+if [ -s "${deploy}/imx-boot-${machine}" ] &&
+   [ "$(stat -Lc '%s' "${deploy}/imx-boot-${machine}")" -le "$((0x400000))" ]; then
+    ok "production imx-boot fits the 4 MiB bootloader slot"
+else
+    bad "production imx-boot exceeds the 4 MiB bootloader slot"
+fi
+if [ -s "${deploy}/u-boot-${machine}.itb" ] &&
+   [ "$(stat -Lc '%s' "${deploy}/u-boot-${machine}.itb")" -le "$((0x1c0000))" ]; then
+    ok "production U-Boot FIT fits the 0x1c0000-byte user-area slot"
+else
+    bad "production U-Boot FIT exceeds the 0x1c0000-byte user-area slot"
+fi
 need_file "lmp-boot-firmware/imx-boot"
 need_file "lmp-boot-firmware/u-boot.itb"
 need_file arm-trusted-firmware.bin
@@ -114,23 +151,40 @@ done
 if [ "$product" -eq 1 ]; then
     for package in \
         gstreamer1.0-plugins-bad-kms \
+        imx-secure-enclave \
+        libcamera \
+        libcamera-gst \
+        mdns \
         mlanutl \
+        neutron \
         otbr-iwxxx \
+        packagegroup-partner-nxp-imx95-runtime \
         packagegroup-nxp-otbr \
         tayga \
+        tensorflow-lite-neutron-delegate \
         waydroid \
         weston \
         zigbee-rcp-apps \
         zigbee-rcp-sdk; do
         need_package "$package"
     done
+    reject_package libnss-mdns
     reject_package otbr
 fi
 
 if [ "$mfgtool" -eq 1 ]; then
-    mfgtool_archive="${deploy}/mfgtool-files-${machine}.tar.gz"
+    if [ -n "$mfgtool_archive_arg" ]; then
+        mfgtool_archive=$mfgtool_archive_arg
+        if [ -s "$mfgtool_archive" ]; then
+            ok "external mfgtool archive is non-empty"
+        else
+            bad "external mfgtool archive is missing or empty: $mfgtool_archive"
+        fi
+    else
+        mfgtool_archive="${deploy}/mfgtool-files-${machine}.tar.gz"
+        need_file "mfgtool-files-${machine}.tar.gz"
+    fi
     bundle_dir="mfgtool-files-${machine}"
-    need_file "mfgtool-files-${machine}.tar.gz"
 
     for member in \
         README.md \
@@ -149,14 +203,46 @@ if [ "$mfgtool" -eq 1 ]; then
     if tar -xzf "$mfgtool_archive" -C "$tmpdir"; then
         bundle="${tmpdir}/${bundle_dir}"
         full_script="${bundle}/full_image.uuu"
+        bootloader_script="${bundle}/bootloader.uuu"
         verify_script="${bundle}/verify_image.uuu"
 
-        if grep -Fq "write -f ../${image}.wic.gz/*" "$full_script" &&
-           grep -Fq 'flash bootloader ../imx-boot-imx95-frdm-evk' "$full_script" &&
-           grep -Fq 'flash bootloader2 ../u-boot-imx95-frdm-evk.itb' "$full_script" &&
-           grep -Fq 'flash bootloader_s ../imx-boot-imx95-frdm-evk' "$full_script" &&
-           grep -Fq 'flash bootloader2_s ../u-boot-imx95-frdm-evk.itb' "$full_script"; then
-            ok "full_image.uuu writes the complete WIC and both production boot slots"
+        if "${bundle}/uuu" -lsusb 2>&1 | grep -Fq 'libuuu_1.5.201'; then
+            ok "bundled UUU has AHAB v2 and V2X container parsing"
+        else
+            bad "bundled UUU is not the pinned i.MX95-safe 1.5.201 release"
+        fi
+
+        if grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$full_script" &&
+           grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl' "$full_script" &&
+           grep -Fq 'SDPS: boot -f imx-boot-mfgtool' "$verify_script" &&
+           grep -Fq 'SDPV: write -f imx-boot-mfgtool -skipspl' "$verify_script"; then
+            ok "MX95 ROM and SPL stages consume one flash_all container"
+        else
+            bad "MX95 ROM or SPL stage does not use the NXP flash_all flow"
+        fi
+
+        if grep -Fq 'getvar partition-size:all' "$full_script" &&
+           grep -Fq 'getvar partition-type:all' "$full_script" &&
+           grep -Fq 'getvar partition-size:bootloader' "$full_script" &&
+           grep -Fq 'if @PARTITION-SIZE:BOOTLOADER@ != 0X60000 then ucmd false' "$full_script" &&
+           grep -Fq 'if @PARTITION-TYPE:BOOTLOADER@ != RAW then ucmd false' "$full_script" &&
+           grep -Fq 'mmc dev ${mmcdev} 1' "$full_script" &&
+           grep -Fq 'mmc dev ${mmcdev} 2' "$full_script" &&
+           grep -Fq 'download -f ../imx-boot-imx95-frdm-evk' "$full_script" &&
+           grep -Fq 'itest ${filesize} -le 400000' "$full_script" &&
+           grep -Fq 'download -f ../u-boot-imx95-frdm-evk.itb' "$full_script" &&
+           grep -Fq 'itest ${filesize} -le 1c0000' "$full_script" &&
+           grep -Fq "flash -raw2sparse all ../${image}.wic.gz/*" "$full_script" &&
+           grep -Fq 'mmc write ${loadaddr} 0x0 ${boot_blkcnt}' "$full_script" &&
+           grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$full_script" &&
+           ! grep -Eq 'flash bootloader(2)?(_s)? ' "$full_script"; then
+            last_preflight=$(grep -nF 'itest ${filesize} -le 1c0000' "$full_script" | tail -n 1 | cut -d: -f1)
+            first_write=$(grep -nF 'flash -raw2sparse all ' "$full_script" | head -n 1 | cut -d: -f1)
+            if [ -n "$last_preflight" ] && [ -n "$first_write" ] && [ "$last_preflight" -lt "$first_write" ]; then
+                ok "full_image.uuu checks payloads before writing WIC, intact containers, and user-area FIT"
+            else
+                bad "full_image.uuu performs a persistent write before completing its i.MX95 preflight"
+            fi
         else
             bad "full_image.uuu does not retain the complete Foundries programming flow"
         fi
@@ -166,6 +252,17 @@ if [ "$mfgtool" -eq 1 ]; then
             ok "verify_image.uuu retains separate aligned WIC read-back"
         else
             bad "verify_image.uuu does not retain separate aligned WIC read-back"
+        fi
+
+        if grep -Fq 'mmc dev ${mmcdev} 1' "$bootloader_script" &&
+           grep -Fq 'mmc dev ${mmcdev} 2' "$bootloader_script" &&
+           grep -Fq 'mmc write ${loadaddr} 0x0 ${boot_blkcnt}' "$bootloader_script" &&
+           grep -Fq 'mmc write ${loadaddr} 0x300 ${fit_blkcnt}' "$bootloader_script" &&
+           ! grep -Eq 'flash bootloader(2)?(_s)? ' "$bootloader_script" &&
+           ! grep -Fq 'flash -raw2sparse all ' "$bootloader_script"; then
+            ok "bootloader.uuu updates intact containers and the raw user-area FIT without writing WIC partitions"
+        else
+            bad "bootloader.uuu does not retain the boot-firmware-only contract"
         fi
 
         if cmp -s "${bundle}/imx-boot-mfgtool" "${deploy}/imx-boot-${machine}"; then
@@ -183,6 +280,7 @@ if [ "$mfgtool" -eq 1 ]; then
         ln -s "${deploy}/imx-boot-${machine}" "${tmpdir}/imx-boot-${machine}"
         ln -s "${deploy}/u-boot-${machine}.itb" "${tmpdir}/u-boot-${machine}.itb"
         if "${bundle}/uuu" -dry "${full_script}" >/dev/null 2>&1 &&
+           "${bundle}/uuu" -dry "${bootloader_script}" >/dev/null 2>&1 &&
            "${bundle}/uuu" -dry "${verify_script}" >/dev/null 2>&1; then
             ok "bundled UUU accepts programming and optional verification scripts"
         else
@@ -202,6 +300,10 @@ for artifact in \
     "mfgtool-files-${machine}.tar.gz"; do
     [ -s "${deploy}/${artifact}" ] && sha256sum "${deploy}/${artifact}"
 done
+
+if [ "$mfgtool" -eq 1 ] && [ -s "$mfgtool_archive" ]; then
+    sha256sum "$mfgtool_archive"
+fi
 
 printf '\nSummary: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

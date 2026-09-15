@@ -35,8 +35,9 @@ logs locally; reference their path and SHA-256 in the committed test record.
 | Audio | MQS jack, PDM microphones and HDMI audio | Capture PDM audio; play known samples through jack and HDMI |
 | PCIe | M.2 Key-M regulator/reset and PCIe root complex | Fit known NVMe/device, enumerate with `lspci`, run read/write smoke test |
 | CAN | FlexCAN2/5 and board transceivers | Wire a second CAN node/loop, send and receive on every exposed intended port |
-| Camera/ISP | Signed optional NXP camera DTBs in FIT; media/ISP/VPU kernel support | Select matching DTB, enumerate supported camera, preview through ISP to HDMI |
-| VPU/GPU/NPU | Amphion/media, DRM/GPU userspace and eIQ Neutron support | Decode known clip, render GLES, run known NPU model and save timing/output |
+| Camera/ISP | Signed optional NXP camera DTBs in FIT; NEO ISP kernel driver plus NXP libcamera/GStreamer runtime | Select matching DTB, enumerate supported camera, preview through ISP to HDMI |
+| VPU/GPU/NPU | Wave6 V4L2 codec, JPEG, DPU G2D, Mali-G310 CSF userspace/kernel pair and eIQ Neutron delegate | Decode and encode known clips, run JPEG encode/decode, render GLES/G2D, run known NPU model and save timing/output |
+| Crypto/security acceleration | A55 AES/SHA Crypto Extensions, ELE TRNG, `fsl-se`, OP-TEE and NXP secure-enclave userspace; CAAM is not copied from i.MX8 | Read hardware RNG, prove accelerated kernel algorithms, create/use a non-production HSM key and verify persistence without changing fuses |
 | M7/M33 | System Manager M33 boot plus Linux M7 remoteproc/RPMsg | Confirm M33 banner; load known M7 firmware and exchange RPMsg round trip |
 | Board peripherals | PCAL GPIO expanders, PCA9632 LEDs, ADC, thermal and watchdog are described by the NXP 6.12 DT; PCF2131 is owned by System Manager and exported through SCMI BBM; the AT24C256 EEPROM is added on Linux LPI2C2 | Read RTC/EEPROM/ADC/temp; exercise spare GPIO/LED; controlled watchdog reboot |
 
@@ -87,6 +88,16 @@ Record hashes and sizes for the WIC, OSTree, FIT, `imx-boot`, mfgtools archive,
 UUU scripts and every file consumed by the UUU scripts. Confirm that the normal
 script performs the full write and that verification is a separate optional
 operation.
+
+For the i.MX95 multi-container `flash_all` image, require UUU 1.5.201 or later.
+The NXP 6.12 image uses AHAB container header v2 and places a V2X header before
+the SPL container. UUU 1.5.179 predates both parsers: it mistakes the complete
+file for the SDPS payload, then reports `HID(W): LIBUSB_ERROR_IO` when SPL starts
+and the ROM endpoint disconnects near 35 percent. Container-v2 parsing first
+appeared in 1.5.197 and V2X parsing in 1.5.201. Keep the generated script on
+NXP's single-file SDPS plus SDPV `-skipspl` sequence. A dry parse cannot detect
+this transport failure; retain kernel USB and UUU evidence from a real
+ROM-to-SDPV-to-fastboot transition.
 
 Foundries publishes the production image and mfgtools as separate build runs.
 Preserve that separation locally too. If local gates deliberately share one
@@ -156,11 +167,16 @@ of the following in the effective values rather than only in source comments:
   compatible with `imx95-frdm-evk`;
 - Wayland, OpenGL, Vulkan and the host audio features required by Waydroid are
   present;
+- `meta-imx-sdk` and `meta-imx-ml` are active at the same pin as
+  `meta-imx-bsp`, and the FRDM runtime group resolves libcamera, Neutron and
+  EdgeLock packages;
 - Weston/Wayland, IW612 firmware/tools, Zigbee RCP and NXP OTBR are in the
   image dependency graph;
 - the machine-scoped Binder/BinderFS fragment is in the selected kernel's
   source URI;
 - i.MX8MM panel rotation and fixed DRM-card policy do not leak onto FRDM HDMI.
+- i.MX8 CAAM assumptions do not leak onto i.MX95: final kernel configuration
+  retains ARM64 AES/SHA CE, ELE TRNG and OP-TEE RNG support.
 
 This is a metadata gate only. It prevents avoidable long builds but cannot be
 promoted to built, booted or hardware-proven evidence.

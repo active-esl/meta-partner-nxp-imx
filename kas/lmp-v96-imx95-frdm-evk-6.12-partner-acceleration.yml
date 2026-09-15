@@ -1,0 +1,17 @@
+# Small-owner build gate for FRDM-IMX95 acceleration runtimes and bench tools.
+# Run this before the complete Factory image after changing NXP layer pins,
+# kernel acceleration options or package composition.
+
+header:
+  version: 14
+  includes:
+    - kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
+
+target:
+  - imx-secure-enclave
+  - libcamera
+  - neutron
+  - tensorflow-lite-neutron-delegate
+  - imx-g2d-samples
+  - packagegroup-partner-nxp-imx95-runtime
+  - packagegroup-partner-nxp-imx95-validation

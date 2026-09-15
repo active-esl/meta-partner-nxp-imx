@@ -239,11 +239,22 @@ EOF
 			firmware = "${config_firmware}";
 			${loadables_line}
 			fdt = "ubootfdt";
+EOF
+
+	# An unsigned FIT must not contain an incomplete signature node.  Recent
+	# NXP SPL code can continue after the resulting -EPERM and then consume
+	# uninitialised load metadata while appending the U-Boot FDT.
+	if [ "${UBOOT_SPL_SIGN_ENABLE}" = "1" ]; then
+		cat << EOF >> u-boot.its
 			signature {
 				algo = "${FIT_HASH_ALG},rsa2048";
 				key-name-hint = "${UBOOT_SPL_SIGN_KEYNAME}";
 				${sign_line};
 			};
+EOF
+	fi
+
+	cat << EOF >> u-boot.its
 		};
 	};
 };

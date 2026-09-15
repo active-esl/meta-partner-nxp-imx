@@ -135,6 +135,16 @@ elif [ "$require_hdmi" -eq 1 ]; then row "HDMI DRM connector" "absent (required)
 else row "HDMI DRM connector" "absent" INFO; I; fi
 conditional "Weston compositor" "$require_hdmi" "systemctl is-active --quiet weston"
 conditional "DRM render node" "$require_hdmi" "test -e /dev/dri/renderD128"
+conditional "Mali-G310 kernel device" 1 "test -e /dev/mali0"
+conditional "G2D validation samples survive OSTree" 1 "test -x /usr/libexec/g2d-samples/g2d_basic_test"
+if [ "$require_hdmi" -eq 1 ]; then
+    if grep -Eq '^[[:space:]]*use-g2d=(true|1)[[:space:]]*$' /etc/xdg/weston/weston.ini 2>/dev/null &&
+       ! $SUDO journalctl -u weston -b 0 2>/dev/null | grep -qi 'failed to initialize g2d renderer'; then
+        row "Accelerated Weston renderer" "NXP G2D selected; no initialization failure" PASS; P
+    else
+        row "Accelerated Weston renderer" "G2D not selected or initialization failed" FAIL; F
+    fi
+fi
 waydroid_cmd="command -v waydroid >/dev/null 2>&1 || systemctl list-unit-files 2>/dev/null | grep -q '^waydroid-container'"
 conditional "Waydroid userspace/container" "$require_waydroid" "$waydroid_cmd"
 conditional "Waydroid image provisioning" "$require_waydroid" "systemctl is-active --quiet waydroid-image-provision.service"
@@ -190,6 +200,11 @@ if [ -n "$wifi_if" ]; then
     row "IW612 Wi-Fi" "\`$wifi_if\`, modules \`${modules:-built-in/unknown}\`" PASS; P
 elif [ "$require_wifi" -eq 1 ]; then row "IW612 Wi-Fi" "no wireless interface" FAIL; F
 else row "IW612 Wi-Fi" "no interface; module/card not required for this run" SKIP; S; fi
+if iw dev 2>/dev/null | awk '$1=="Interface"{print $2}' | grep -Eq '^(uap|wfd)[0-9]*$'; then
+    row "Station-only IW612 policy" "unexpected AP/WFD interface present" FAIL; F
+else
+    row "Station-only IW612 policy" "no uap/wfd interface" PASS; P
+fi
 conditional "IW612 Bluetooth firmware" "$require_bluetooth" "test -s /lib/firmware/nxp/uartspi_n61x_v1.bin.se || test -s /usr/lib/firmware/nxp/uartspi_n61x_v1.bin.se"
 conditional "Bluetooth HCI" "$require_bluetooth" "test -d /sys/class/bluetooth/hci0"
 conditional "Bluetooth adapter powered" "$require_bluetooth" "bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'"
@@ -227,11 +242,35 @@ present /dev/watchdog0 "Hardware watchdog"
 
 header "8. Accelerators, media and companion cores"
 conditional "eIQ Neutron NPU" 1 "find /dev /sys -maxdepth 4 2>/dev/null | grep -qiE 'ethosu|neutron'"
+conditional "Neutron userspace library" 1 "find /usr/lib -maxdepth 1 -name 'libneutron*.so*' | grep -q ."
+conditional "TensorFlow Lite Neutron delegate" 1 "find /usr/lib -maxdepth 1 -iname '*neutron*delegate*.so*' | grep -q ."
 conditional "VPU/media device" 1 "find /dev -maxdepth 1 2>/dev/null | grep -qE '/dev/video[0-9]+|/dev/mxc_vpu'"
 conditional "Camera sensor/media graph" 0 "command -v media-ctl >/dev/null 2>&1 && media-ctl -p 2>/dev/null | grep -qiE 'imx|os08|ap1302|camera'"
+conditional "NXP libcamera runtime" 1 "command -v cam >/dev/null 2>&1 && gst-inspect-1.0 libcamerasrc >/dev/null 2>&1"
 rp=$(find /sys/class/remoteproc -mindepth 1 -maxdepth 1 2>/dev/null | wc -l)
 if [ "$rp" -ge 1 ]; then row "Remoteproc controllers (M7/M33)" "$rp controller(s)" PASS; P; else row "Remoteproc controllers" "none" FAIL; F; fi
 conditional "RPMsg endpoint/bus" 0 "test -d /sys/bus/rpmsg && find /sys/bus/rpmsg/devices -mindepth 1 -maxdepth 1 | grep -q ."
+
+header "9. Crypto acceleration and secure enclave"
+if awk 'BEGIN { RS="" } /driver[[:space:]]*: aes-ce/' /proc/crypto | grep -q 'priority'; then
+    row "ARMv8 AES Crypto Extensions" "aes-ce registered in kernel crypto API" PASS; P
+else
+    row "ARMv8 AES Crypto Extensions" "aes-ce not registered" FAIL; F
+fi
+if awk 'BEGIN { RS="" } /driver[[:space:]]*: sha256-ce/' /proc/crypto | grep -q 'priority'; then
+    row "ARMv8 SHA Crypto Extensions" "sha256-ce registered in kernel crypto API" PASS; P
+else
+    row "ARMv8 SHA Crypto Extensions" "sha256-ce not registered" FAIL; F
+fi
+conditional "EdgeLock secure-enclave transport" 1 "test -e /dev/hsm0_ch0 && find /sys/bus/platform/drivers/fsl-se -mindepth 1 -maxdepth 1 -type l | grep -q ."
+conditional "EdgeLock userspace library" 1 "test -d /usr/share/se && find /usr/share/se -type f | grep -q ."
+conditional "Hardware random source" 1 "test -c /dev/hwrng && test -r /sys/class/misc/hw_random/rng_available"
+conditional "OP-TEE client" 1 "test -c /dev/tee0 && test -c /dev/teepriv0"
+
+header "10. Runtime service health"
+conditional "Docker service" 1 "systemctl is-active --quiet docker"
+conditional "nft-backed iptables service" 1 "systemctl is-active --quiet iptables"
+conditional "zram swap service" 1 "systemctl is-active --quiet zram-swap && grep -q '^/dev/zram' /proc/swaps"
 
 printf '\n## Summary\n\n'
 printf -- '- PASS: **%d**\n- FAIL: **%d**\n- INFO: **%d**\n- SKIP: **%d**\n' "$pass" "$fail" "$info" "$skip"

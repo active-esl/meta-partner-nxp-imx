@@ -53,6 +53,12 @@ EXTRA_OEMAKE = " \
 do_configure[noexec] = "1"
 do_install[noexec] = "1"
 
+# TF-A's makefiles do not encode configuration switches such as SPD=opteed in
+# the output dependencies.  If MACHINE_FEATURES changes in an existing build
+# directory, make otherwise reports the old bl31 as current and silently
+# deploys a binary built for the previous configuration.
+do_compile[cleandirs] = "${S}/build"
+
 ANNOTATED_NAME        = "bl31-${ATF_PLATFORM}.bin"
 ANNOTATED_NAME:append = "${@bb.utils.contains('PACKAGECONFIG',  'crrm',  '-crrm', '', d)}"
 ANNOTATED_NAME:append = "${@bb.utils.contains('PACKAGECONFIG', 'optee', '-optee', '', d)}"

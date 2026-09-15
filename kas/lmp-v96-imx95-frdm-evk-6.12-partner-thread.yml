@@ -1,8 +1,8 @@
 # Compatibility gate for NXP IW612 OpenThread on Foundries LmP v96.
 #
-# NXP's matching connectivity release does not advertise Scarthgap support.
-# This configuration is therefore evidence for the compatibility port, not a
-# blanket claim that every meta-nxp-connectivity sublayer supports LmP v96.
+# The main product graph already pins the matching NXP connectivity release
+# and its narrow Scarthgap compatibility patches.  This derived configuration
+# changes only the target so it remains an honest component consumer gate.
 
 header:
   version: 14
@@ -10,19 +10,3 @@ header:
     - kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
 
 target: packagegroup-nxp-otbr
-
-repos:
-  meta-nxp-connectivity:
-    url: https://github.com/nxp-imx/meta-nxp-connectivity.git
-    commit: 14a32aa7467f58257e3bb93a5c0fa443c70ae1ae
-    path: build/layers/meta-nxp-connectivity
-    layers:
-      meta-nxp-zigbee-rcp:
-      meta-nxp-otbr:
-    patches:
-      0001-scarthgap-compatibility:
-        repo: meta-partner-nxp-imx
-        path: kas/patches/meta-nxp-connectivity/0001-nxp-otbr-declare-scarthgap-compatibility.patch
-      0002-zigbee-scarthgap-compatibility:
-        repo: meta-partner-nxp-imx
-        path: kas/patches/meta-nxp-connectivity/0002-nxp-zigbee-rcp-declare-scarthgap-compatibility.patch

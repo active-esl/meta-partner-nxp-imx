@@ -46,6 +46,9 @@ For FRDM-IMX95 this means:
   `imx95-frdm-evk` reference machine, Foundries OSTree/FIT boot integration,
   kernel and mfgtool device trees, IW612 driver/firmware alignment, WIC layout
   and UUU/mfgtools support;
+- the consuming manifest enables the pinned `meta-imx-sdk` and `meta-imx-ml`
+  sublayers from that same NXP revision; the FRDM runtime package group selects
+  NEO libcamera, Neutron and EdgeLock from those vendor layers;
 - a product distro layer selects display, Waydroid and other image features;
 - Thread/Matter products pin NXP `meta-nxp-connectivity` to the same BSP
   release and select its IWxxx OTBR packages; the partner machine exposes the
@@ -62,6 +65,8 @@ LmP v96 and later no longer include `meta-freescale` by default. A consuming
 manifest must pin and add:
 
 - `meta-freescale` and any required NXP vendor layers;
+- `meta-imx-bsp`, `meta-imx-sdk` and `meta-imx-ml` from one pinned `meta-imx`
+  revision—mixing their quarterly releases is unsupported;
 - this repository on the `nxp-imx` branch or a reviewed pinned derivative;
 - this layer to the Factory BSP layer list.
 
@@ -83,15 +88,23 @@ mDNSResponder is updated.
 ## FRDM-IMX95 proof order
 
 1. Parse the exact Factory manifest and audit effective providers/versions.
-2. Build `linux-lmp-fslc-imx`, `kernel-module-nxp-wlan`,
+2. Run `kas/lmp-v96-imx95-frdm-evk-6.12-partner-acceleration.yml`, then build
+   `linux-lmp-fslc-imx`, `kernel-module-nxp-wlan`,
    `firmware-nxp-wifi`, `linux-imx-headers`, `u-boot-fio`, `imx-atf`, System
-   Manager, OEI, OP-TEE, `imx-boot` and `mfgtool-files` independently.
+   Manager, OEI, OP-TEE, `imx-boot`, `imx-g2d-samples`, `libcamera`,
+   `neutron`, `tensorflow-lite-neutron-delegate`, `imx-secure-enclave` and
+   `mfgtool-files` independently.
 3. Build the complete Factory image and inspect its FIT, WIC and UUU bundle.
 4. Program only with the i.MX95 UUU flow and retain serial evidence.
 5. Prove boot, OTA/rollback and board interfaces on hardware.
 
 The optional verification UUU script is included in the mfgtools bundle but is
 not part of the default programming path.
+
+The production FRDM package group contains only the NXP camera, Neutron and
+EdgeLock runtimes. `packagegroup-partner-nxp-imx95-validation` is selected only
+when `DEV_MODE = "1"`; G2D samples, media tools and crypto tests must not enter
+a release image accidentally.
 
 ## Reproducible development checks
 

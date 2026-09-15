@@ -1,5 +1,24 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
+# The lf-6.12.49-2.2.0 i.MX95 flash_all image uses AHAB container header v2
+# and carries the V2X header before the SPL container.  UUU 1.5.179 predates
+# both parsers and sends the complete image during SDPS; SPL starts after its
+# first container and disconnects the ROM endpoint while the host is still
+# writing, producing LIBUSB_ERROR_IO.  Keep legacy machines on Foundries'
+# existing binary, but require the first UUU release containing both fixes for
+# FRDM-i.MX95 (v2 landed in 1.5.197; V2X landed in 1.5.201).
+UUU_RELEASE:imx95-frdm-evk = "1.5.201"
+
+# BitBake 2.8 does not accept override syntax on a varflag assignment. Select
+# the checksums after MACHINE overrides have resolved instead.
+python __anonymous () {
+    if d.getVar("MACHINE") == "imx95-frdm-evk":
+        d.setVarFlag("SRC_URI", "Linux.sha256sum", "61f73454b2f60c419dc8d81ce1566092d57f105ca914ef4667162cec39d984c6")
+        d.setVarFlag("SRC_URI", "Mac_arm.sha256sum", "c963f40e34680373377e0820075014e2dc082751d146b87adc9779c7ec61aff8")
+        d.setVarFlag("SRC_URI", "Mac_x86.sha256sum", "c81c0b1a0f616c976aa74e873715863cc1b1d0dbe5609b7413cc527f5231cef8")
+        d.setVarFlag("SRC_URI", "Windows.sha256sum", "48cf245711e99fd6c118cf6b63722ba5551b7e57f334184b7c73fbea5bbf460e")
+}
+
 SRC_URI:append:imx95-frdm-evk = " \
     file://verify_image.uuu.in \
     file://README-imx95-mfgtool.md \

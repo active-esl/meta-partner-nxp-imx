@@ -1,0 +1,33 @@
+name: Partner Layer Source Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "review/**"
+
+permissions:
+  contents: read
+
+jobs:
+  source-invariants:
+    name: i.MX95 source invariants
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the partner layer
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Reject malformed test scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' script; do
+            case "$(head -n 1 "$script")" in
+              *bash*) bash -n "$script" ;;
+              *) sh -n "$script" ;;
+            esac
+          done < <(find test-plan -type f -name '*.sh' -print0)
+
+      - name: Verify FRDM-IMX95 source and boot-layout contracts
+        run: ./test-plan/check-imx95-boot-layout-source.sh
