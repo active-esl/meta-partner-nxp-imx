@@ -1,19 +1,20 @@
 From 7ce21c1a9f28c2dd0f191687777571ac629e0401 Mon Sep 17 00:00:00 2001
 From: Alex J Lennon <ajlennon@dynamicdevices.co.uk>
 Date: Tue, 15 Sep 2026 16:00:00 +0100
-Subject: [PATCH] libapparmor: drop GCC-only LTO partition flag
+Subject: [PATCH] apparmor: drop GCC-only LTO partition flags
 
-Clang rejects -flto-partition=none. The option is hard-coded in AM_CFLAGS,
-so removing it from Yocto's CFLAGS does not affect the generated Makefile.
+Clang rejects -flto-partition=none. AppArmor 3.1.3 hard-codes the option
+in both libapparmor and parser build flags, outside Yocto's CFLAGS.
 
-The patch is added only for toolchain-clang by the recipe append. GCC builds
-therefore retain upstream's LTO partitioning workaround.
+This patch is added only for toolchain-clang by the recipe append. GCC
+builds therefore retain upstream's LTO partitioning workaround.
 
 Upstream-Status: Inappropriate [Yocto toolchain selection]
 Signed-off-by: Alex J Lennon <ajlennon@dynamicdevices.co.uk>
 ---
  libraries/libapparmor/src/Makefile.am | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ parser/Makefile                       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/libraries/libapparmor/src/Makefile.am b/libraries/libapparmor/src/Makefile.am
 index 0301af59..77365348 100644
@@ -22,3 +23,10 @@ index 0301af59..77365348 100644
 @@ -48 +48 @@
 -AM_CFLAGS = -Wall $(EXTRA_WARNINGS) -fPIC -flto-partition=none
 +AM_CFLAGS = -Wall $(EXTRA_WARNINGS) -fPIC
+diff --git a/parser/Makefile b/parser/Makefile
+index f02fb5ce..a8929413 100644
+--- a/parser/Makefile
++++ b/parser/Makefile
+@@ -73 +73 @@ endif #CFLAGS
+-CFLAGS	+= -flto-partition=none
++CFLAGS	+=

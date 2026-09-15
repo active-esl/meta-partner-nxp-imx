@@ -3,6 +3,6 @@
 # cannot reach it. Patch the source only for Clang and also disable recipe LTO.
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-SRC_URI:append:toolchain-clang = " file://0001-libapparmor-drop-gcc-only-lto-partition-flag.patch"
+SRC_URI:append:toolchain-clang = " file://0001-apparmor-drop-gcc-only-lto-partition-flags.patch"
 
 LTO:toolchain-clang = ""
