@@ -39,8 +39,8 @@ fi
 # that configuration again.
 rm -f "${config}"
 
-# FRDM-IMX95 consumes a reviewed, immutable Active ESL release rather than
-# Waydroid's rolling OTA channel. The pair is staged and verified together so
+# Product machines consume a reviewed, immutable Active ESL release rather
+# than Waydroid's rolling OTA channel. The pair is staged and verified together so
 # an interrupted download can never leave one new image beside one old image.
 if [ -r "${release_config}" ]; then
     # This file is installed root-owned from the Foundries OS image.
