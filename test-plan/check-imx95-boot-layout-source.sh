@@ -24,6 +24,7 @@ kas_smoke="$repo/kas/lmp-imx95-frdm-evk-6.12-partner.yml"
 kas_v96="$repo/kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml"
 kas_accel="$repo/kas/lmp-v96-imx95-frdm-evk-6.12-partner-acceleration.yml"
 imx_boot_append="$repo/recipes-bsp/imx-mkimage/imx-boot_%.bbappend"
+waydroid_append="$repo/recipes-support/waydroid/waydroid.bbappend"
 
 for script in "$mfgdir/full_image.uuu.in" "$mfgdir/bootloader.uuu.in"; do
     # These dollar expressions are intentional literals from the UUU script.
@@ -58,6 +59,11 @@ if grep -Eq "(^|[[:space:]'\"])optee-os:do_deploy" "$imx_boot_append"; then
     echo "imx-boot task dependency bypasses the selected virtual OP-TEE provider" >&2
     exit 1
 fi
+
+# The factory layer may already have normalized the hook before the partner
+# bbappend runs.  Both product overrides must accept that safe second pass.
+test "$(grep -Fc "elif ! grep -qx 'lxc.hook.post-stop = /bin/true'" "$waydroid_append")" -eq 2
+test "$(grep -Fc "if grep -qx 'lxc.hook.post-stop = /dev/null'" "$waydroid_append")" -eq 2
 
 # Local unsigned SOTA builds must override the same scoped secure default used
 # by the BSP.  An unqualified value silently leaves SPL_FIT_SIGNATURE_STRICT on.
