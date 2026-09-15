@@ -8,8 +8,8 @@ Subject: [PATCH] lxc: enforce exact graphics and video device policy
  data/configs/apparmor_profiles/android_app  |  2 +-
  data/configs/apparmor_profiles/lxc-waydroid |  3 +-
  tools/actions/container_manager.py          | 19 +++---
- tools/helpers/lxc.py                        | 65 ++++++++++++++++++++-
- 5 files changed, 77 insertions(+), 15 deletions(-)
+ tools/helpers/lxc.py                        | 71 ++++++++++++++++++++-
+ 5 files changed, 83 insertions(+), 15 deletions(-)
 
 diff --git a/data/configs/apparmor_profiles/adbd b/data/configs/apparmor_profiles/adbd
 index 2ce14e6..5e969e5 100644
@@ -120,7 +120,7 @@ index 1b6ff49..3dcc5cd 100644
 +            logging.warning("Configured V4L2 device does not exist: %s", path)
 +    return devices
 +
-@@ -41 +92,9 @@ def generate_nodes_lxc_config(args):
+@@ -41 +92,13 @@ def generate_nodes_lxc_config(args):
 -    nodes = []
 +    controller = ("lxc.cgroup2" if os.path.exists("/sys/fs/cgroup/cgroup.controllers")
 +                  else "lxc.cgroup")
@@ -128,8 +128,12 @@ index 1b6ff49..3dcc5cd 100644
 +    # Android creates these standard pseudo devices after LXC mounts its /dev
 +    # tmpfs. Permit only their fixed majors/minors plus the devpts range.
 +    for device in ("c 1:3 rwm", "c 1:5 rwm", "c 1:7 rwm", "c 1:8 rwm",
-+                   "c 1:9 rwm", "c 5:0 rwm", "c 5:1 rwm", "c 5:2 rwm",
++                   "c 1:9 rwm", "c 1:11 rwm", "c 5:0 rwm", "c 5:1 rwm", "c 5:2 rwm",
 +                   "c 136:* rwm"):
++        nodes.append("{}.devices.allow = {}".format(controller, device))
++    # Android 14 and later use image APEX packages. Allow only the loop and
++    # device-mapper block majors that apexd needs to construct those images.
++    for device in ("b 7:* rwm", "b 253:* rwm"):
 +        nodes.append("{}.devices.allow = {}".format(controller, device))
 @@ -69 +128 @@ def generate_nodes_lxc_config(args):
 -    for n in glob.glob("/dev/video*"):
@@ -137,5 +141,8 @@ index 1b6ff49..3dcc5cd 100644
 @@ -71 +130 @@ def generate_nodes_lxc_config(args):
 -    for n in glob.glob("/dev/dma_heap/*"):
 +    for n in get_dma_heap_devices(args):
+@@ -89,0 +153,2 @@ def generate_nodes_lxc_config(args):
++    make_entry("/dev/loop-control")
++    make_entry("/dev/mapper/control", "dev/device-mapper")
 --
 2.43.0
