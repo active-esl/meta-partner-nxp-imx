@@ -18,6 +18,18 @@ release_marker_matches() {
     [ "${current_sum}" = "${installed_sum}" ]
 }
 
+release_images_match() {
+    release_marker_matches || return 1
+    # The release file is installed root-owned by the OS image. A matching
+    # marker alone cannot prove that persistent images remain intact.
+    # shellcheck disable=SC1090
+    . "${release_config}"
+    printf '%s  %s\n' "${WAYDROID_SYSTEM_SHA256}" "${preinstalled_dir}/system.img" |
+        sha256sum -c - || return 1
+    printf '%s  %s\n' "${WAYDROID_VENDOR_SHA256}" "${preinstalled_dir}/vendor.img" |
+        sha256sum -c -
+}
+
 # Rolling-channel machines may keep any complete existing image pair.  A
 # product with an immutable release pin must continue below and prove that the
 # installed pair belongs to that release before it can be reused.
@@ -35,14 +47,9 @@ fi
 if [ -r "${release_config}" ] && [ -s "${config}" ] && \
         [ -s "${preinstalled_dir}/system.img" ] && \
         [ -s "${preinstalled_dir}/vendor.img" ] && \
-        release_marker_matches; then
+        release_images_match; then
     exit 0
 fi
-
-# An interrupted first initialization can leave configuration claiming a
-# channel revision whose image was never fully installed.  Let Waydroid build
-# that configuration again.
-rm -f "${config}"
 
 # Product machines consume a reviewed, immutable Active ESL release rather
 # than Waydroid's rolling OTA channel. The pair is staged and verified together so
@@ -56,7 +63,10 @@ if [ -r "${release_config}" ]; then
     # image pair from the same pinned release instead of downloading it again.
     if [ -s "${preinstalled_dir}/system.img" ] && \
             [ -s "${preinstalled_dir}/vendor.img" ] && \
-            release_marker_matches; then
+            release_images_match; then
+        # An interrupted initialization can leave an old channel in the
+        # generated config; rebuild it only after the image pair is proven.
+        rm -f "${config}"
         exec /usr/bin/waydroid init --images_path "${preinstalled_dir}" --force
     fi
 
@@ -72,7 +82,7 @@ if [ -r "${release_config}" ]; then
         output=${stage}/${image}.img
         curl --fail --location --retry 5 --retry-all-errors \
             --output "${output}" "${WAYDROID_IMAGE_BASE_URL}/${image}.img"
-        printf '%s  %s\n' "${expected}" "${output}" | sha256sum -c - >/dev/null
+        printf '%s  %s\n' "${expected}" "${output}" | sha256sum -c -
     done
 
     chmod 0644 "${stage}/system.img" "${stage}/vendor.img"
@@ -87,9 +97,11 @@ if [ -r "${release_config}" ]; then
     stage=
     rm -rf "${old}"
     trap - EXIT HUP INT TERM
+    rm -f "${config}"
     exec /usr/bin/waydroid init --images_path "${preinstalled_dir}" --force
 fi
 
 # Existing machines retain the proven rolling-channel behaviour until they
 # opt into an immutable product release of their own.
+rm -f "${config}"
 exec /usr/bin/waydroid init
