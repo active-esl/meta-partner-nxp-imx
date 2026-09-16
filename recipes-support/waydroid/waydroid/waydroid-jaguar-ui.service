@@ -15,8 +15,11 @@ Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/63/bus
 Environment=WAYLAND_DISPLAY=wayland-1
 ExecStartPre=/usr/libexec/waydroid-jaguar-wait session
 ExecStart=/usr/bin/waydroid show-full-ui
+# R16 can boot Android with a black host window. Recreate the HWC toplevel
+# once Android has finished booting; + runs this command as root for shell.
+ExecStartPost=+/usr/libexec/waydroid-jaguar-present-after-boot
 RemainAfterExit=yes
-TimeoutStartSec=180
+TimeoutStartSec=360
 
 [Install]
 WantedBy=graphical.target

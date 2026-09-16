@@ -37,6 +37,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://waydroid-image-release-imx8mm.conf \
     file://waydroid-image-provision.service \
     file://waydroid-jaguar-wait \
+    file://waydroid-jaguar-present-after-boot \
     file://waydroid-jaguar-container.service \
     file://waydroid-jaguar-session.service \
     file://waydroid-jaguar-ui.service \
@@ -178,6 +179,8 @@ do_install:append:imx8mm-jaguar-screen() {
 
     install -Dm0755 ${WORKDIR}/waydroid-jaguar-wait \
         ${D}${libexecdir}/waydroid-jaguar-wait
+    install -Dm0755 ${WORKDIR}/waydroid-jaguar-present-after-boot \
+        ${D}${libexecdir}/waydroid-jaguar-present-after-boot
     install -Dm0644 ${WORKDIR}/waydroid-jaguar-container.service \
         ${D}${systemd_system_unitdir}/waydroid-jaguar-container.service
     install -Dm0644 ${WORKDIR}/waydroid-jaguar-session.service \

@@ -1,0 +1,18 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+# R16 can complete boot without presenting a host frame on Jaguar Screen.
+set -eu
+
+attempt=0
+while [ "$attempt" -lt 150 ]; do
+    if boot_state=$(timeout 5 /usr/bin/waydroid shell -- getprop sys.boot_completed) && [ "$boot_state" = 1 ]; then
+        echo 'Android boot complete; restarting hardware composer to present LineageOS'
+        /usr/bin/waydroid shell -- setprop ctl.restart vendor.hwcomposer-2-1
+        exit 0
+    fi
+    attempt=$((attempt + 1))
+    sleep 2
+done
+
+echo 'Timed out waiting for Android boot completion; hardware composer was not restarted' >&2
+exit 1
