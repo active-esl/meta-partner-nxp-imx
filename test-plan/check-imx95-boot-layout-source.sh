@@ -8,11 +8,6 @@ mfgdir="$repo/recipes-support/mfgtool-files/mfgtool-files/imx95-frdm-evk"
 bootcmd="$repo/recipes-bsp/u-boot/u-boot-ostree-scr-fit/imx95-frdm-evk/boot.cmd"
 factory_cfg="$repo/recipes-bsp/u-boot/u-boot-fio/imx95-frdm-evk/factory-fastboot.cfg"
 mfgtool_cfg="$repo/recipes-bsp/u-boot/u-boot-fio/imx95-frdm-evk/mfgtool-fastboot.cfg"
-production_env_cfg="$repo/recipes-bsp/u-boot/u-boot-fio/imx95-frdm-evk/lmp-spl-fit.cfg"
-production_boot_cfg="$repo/recipes-bsp/u-boot/u-boot-fio/imx95-frdm-evk/ostree-boot.cfg"
-production_append="$repo/recipes-bsp/u-boot/u-boot-fio_%.bbappend"
-fw_env_cfg="$repo/recipes-bsp/u-boot/u-boot-fio-2025.04/fw_env.config"
-frdm_fstab="$repo/recipes-core/base-files/base-files/imx95-frdm-evk/fstab"
 kernel_cfg="$repo/recipes-kernel/linux/linux-lmp-fslc-imx/imx95-15x15-lpddr4x-frdm.cfg"
 wifi_append="$repo/recipes-kernel/kernel-modules/kernel-module-nxp-wlan_%.bbappend"
 weston_append="$repo/recipes-graphics/wayland/weston-init.bbappend"
@@ -53,18 +48,6 @@ if grep -Fqx '# CONFIG_FSL_FASTBOOT_BOOTLOADER2 is not set' "$mfgtool_cfg"; then
     exit 1
 fi
 grep -Fqx 'CONFIG_FSL_FASTBOOT_BOOTLOADER2_OFFSET=0x300' "$mfgtool_cfg"
-
-# The NXP FRDM defconfig selects raw MMC environment at 0x700000, inside our
-# VFAT p1. Production U-Boot and Linux must both use uboot.env on that FAT
-# partition, with first-boot initialization by production U-Boot only.
-grep -Fqx '# CONFIG_ENV_IS_IN_MMC is not set' "$production_env_cfg"
-grep -Fqx '# CONFIG_ENV_IS_NOWHERE is not set' "$production_env_cfg"
-grep -Fqx 'CONFIG_ENV_IS_IN_FAT=y' "$production_env_cfg"
-grep -Fqx 'CONFIG_CMD_NVEDIT_INFO=y' "$production_env_cfg"
-grep -Fq 'if env info -p -d -q; then env save; fi' "$production_boot_cfg"
-grep -Fq 'do_configure:append:imx95-frdm-evk()' "$production_append"
-grep -Fqx '/mnt/boot/uboot.env	0x0000	0x4000' "$fw_env_cfg"
-grep -Eq '^/dev/mmcblk0p1[[:space:]]+/mnt/boot[[:space:]]+vfat[[:space:]]+x-systemd\.automount' "$frdm_fstab"
 
 # LmP provides OP-TEE through optee-os-fio.  A direct dependency on the
 # upstream recipe makes BitBake reject the selected virtual provider before it

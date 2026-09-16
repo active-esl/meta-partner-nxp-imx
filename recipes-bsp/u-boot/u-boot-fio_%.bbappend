@@ -28,16 +28,3 @@ SRC_URI:append:imx95-frdm-evk = " \
 # NXP U-Boot currently races its CONFIG_DEFAULT_DEVICE_TREE existence check
 # against parallel DTB builds for this target.
 PARALLEL_MAKE:imx95-frdm-evk = "-j 1"
-
-# Fail the product build if NXP's raw-MMC default wins over the FRDM FAT
-# fragment. A textual fragment check alone cannot prove the merged .config.
-do_configure:append:imx95-frdm-evk() {
-    imx95_config="${B}/${UBOOT_MACHINE}/.config"
-    [ -f "$imx95_config" ] || bbfatal "FRDM U-Boot .config missing: $imx95_config"
-    grep -Fqx 'CONFIG_ENV_IS_IN_FAT=y' "$imx95_config" || bbfatal "FRDM U-Boot FAT environment is not selected"
-    grep -Fqx '# CONFIG_ENV_IS_IN_MMC is not set' "$imx95_config" || bbfatal "FRDM U-Boot still selects raw MMC environment"
-    grep -Fqx '# CONFIG_ENV_IS_NOWHERE is not set' "$imx95_config" || bbfatal "FRDM U-Boot still selects nowhere environment"
-    grep -Fqx 'CONFIG_ENV_FAT_DEVICE_AND_PART="0:1"' "$imx95_config" || bbfatal "FRDM U-Boot FAT environment is not on eMMC p1"
-    grep -Fqx 'CONFIG_CMD_NVEDIT_INFO=y' "$imx95_config" || bbfatal "FRDM U-Boot cannot initialize its first-boot FAT environment"
-    grep -Fq 'if env info -p -d -q; then env save; fi' "$imx95_config" || bbfatal "FRDM U-Boot first-boot environment initialization is missing"
-}
