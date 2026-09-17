@@ -157,11 +157,13 @@ configure_waydroid_lxc_proc() {
     # Mount it with Android's process-hiding policy in LXC instead, while
     # retaining the proc/sys protections of LXC's automatic proc:mixed mode.
     # AID_READPROC is 3009 in the pinned Android 16 filesystem config.
-    if grep -qx 'lxc.mount.auto = cgroup:ro sys:ro proc' "${config_base}"; then
+    if grep -Eq '^lxc\.mount\.entry[[:space:]]*=[[:space:]]*[^[:space:]]+[[:space:]]+proc[[:space:]]' "${config_base}"; then
+        bbfatal "unexpected existing proc mount entry in ${config_base}"
+    elif [ "$(grep -cx 'lxc.mount.auto = cgroup:ro sys:ro proc' "${config_base}")" -eq 1 ]; then
         sed -i 's|^lxc.mount.auto = cgroup:ro sys:ro proc$|lxc.mount.auto = cgroup:ro sys:ro|' \
             "${config_base}"
         printf '%s\n' \
-            'lxc.mount.entry = proc proc proc rw,remount,nodev,nosuid,noexec,relatime,hidepid=2,gid=3009 0 0' \
+            'lxc.mount.entry = proc proc proc rw,nodev,nosuid,noexec,relatime,hidepid=2,gid=3009 0 0' \
             'lxc.mount.entry = proc/sys proc/sys proc ro,bind,relative 0 0' \
             'lxc.mount.entry = proc/sys/net proc/sys/net proc rw,bind,relative 0 0' \
             'lxc.mount.entry = proc/sysrq-trigger proc/sysrq-trigger proc ro,bind,relative 0 0' \

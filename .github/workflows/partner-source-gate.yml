@@ -31,3 +31,9 @@ jobs:
 
       - name: Verify FRDM-IMX95 source and boot-layout contracts
         run: ./test-plan/check-imx95-boot-layout-source.sh
+
+      - name: Verify Waydroid LXC proc policy source
+        run: ./test-plan/check-waydroid-lxc-proc-source.sh
+
+      - name: Verify Waydroid immutable-image provisioning order
+        run: ./test-plan/check-waydroid-image-provision-source.sh

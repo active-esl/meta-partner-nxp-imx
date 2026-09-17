@@ -18,10 +18,6 @@ release_marker_matches() {
     [ "${current_sum}" = "${installed_sum}" ]
 }
 
-if [ -s "${images_dir}/system.img" ] && [ -s "${images_dir}/vendor.img" ]; then
-    exit 0
-fi
-
 # A completed immutable-image initialization keeps its images in /etc rather
 # than copying them into Waydroid's writable state.  Match the installed
 # release marker as well as the image pair so normal reboots do not download
@@ -87,4 +83,7 @@ fi
 
 # Existing machines retain the proven rolling-channel behaviour until they
 # opt into an immutable product release of their own.
+if [ -s "${images_dir}/system.img" ] && [ -s "${images_dir}/vendor.img" ]; then
+    exit 0
+fi
 exec /usr/bin/waydroid init
