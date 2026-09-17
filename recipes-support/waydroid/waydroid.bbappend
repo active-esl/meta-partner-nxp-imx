@@ -173,6 +173,19 @@ configure_waydroid_lxc_proc() {
     fi
 }
 
+configure_waydroid_lxc_apparmor() {
+    config_base="$1"
+    # The default-cgns profile denies Android's mount setup. Use Waydroid's
+    # installed, enforced profile; never fall back to an unconfined container.
+    if grep -qx 'lxc.apparmor.profile = lxc-waydroid' "${config_base}"; then
+        return 0
+    elif grep -Eq '^lxc\.apparmor\.profile[[:space:]]*=' "${config_base}"; then
+        bbfatal "unexpected Waydroid AppArmor profile in ${config_base}"
+    else
+        printf '%s\n' 'lxc.apparmor.profile = lxc-waydroid' >> "${config_base}"
+    fi
+}
+
 do_install:append:imx8mm-jaguar-screen() {
     install -Dm644 -t "${D}${sysconfdir}" "${WORKDIR}/gbinder.conf"
     install -m 755 ${WORKDIR}/waydroid-net.sh ${D}/usr/lib/waydroid/data/scripts/waydroid-net.sh
@@ -230,6 +243,7 @@ do_install:append:imx95-frdm-evk() {
     fi
 
     configure_waydroid_lxc_proc "${config_base}"
+    configure_waydroid_lxc_apparmor "${config_base}"
 
     install -Dm0755 ${WORKDIR}/waydroid-product-wait \
         ${D}${libexecdir}/waydroid-product-wait

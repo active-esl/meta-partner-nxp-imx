@@ -11,6 +11,9 @@ trap 'rm -f -- "${config_fixture}"' EXIT
 helper_source="$(sed -n '/^configure_waydroid_lxc_proc() {$/,/^}$/p' "${recipe}")"
 [[ "${helper_source}" == *'configure_waydroid_lxc_proc() {'* ]]
 source /dev/stdin <<< "${helper_source}"
+apparmor_helper_source="$(sed -n '/^configure_waydroid_lxc_apparmor() {$/,/^}$/p' "${recipe}")"
+[[ "${apparmor_helper_source}" == *'configure_waydroid_lxc_apparmor() {'* ]]
+source /dev/stdin <<< "${apparmor_helper_source}"
 bbfatal() { printf '%s\n' "$*" >&2; return 1; }
 
 printf '%s\n' 'lxc.mount.auto = cgroup:ro sys:ro proc' > "${config_fixture}"
@@ -34,4 +37,14 @@ if configure_waydroid_lxc_proc "${config_fixture}" 2>/dev/null; then
     exit 1
 fi
 grep -qx 'lxc.mount.auto = cgroup:ro sys:ro proc' "${config_fixture}"
+printf '%s\n' 'lxc.mount.auto = cgroup:ro sys:ro' > "${config_fixture}"
+configure_waydroid_lxc_apparmor "${config_fixture}"
+configure_waydroid_lxc_apparmor "${config_fixture}"
+[[ "$(grep -cx 'lxc.apparmor.profile = lxc-waydroid' "${config_fixture}")" == 1 ]]
+printf '%s\n' 'lxc.apparmor.profile = unconfined' > "${config_fixture}"
+if configure_waydroid_lxc_apparmor "${config_fixture}" 2>/dev/null; then
+    echo 'unexpectedly accepted an unconfined Waydroid AppArmor profile' >&2
+    exit 1
+fi
+grep -qx 'lxc.apparmor.profile = unconfined' "${config_fixture}"
 echo 'Waydroid LXC proc source check passed'
