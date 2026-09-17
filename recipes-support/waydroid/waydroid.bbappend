@@ -151,6 +151,26 @@ do_install:append:imx8mm-lpddr4-evk() {
     install -m 755 ${WORKDIR}/waydroid-net.sh ${D}/usr/lib/waydroid/data/scripts/waydroid-net.sh
 }
 
+configure_waydroid_lxc_proc() {
+    config_base="$1"
+    # Android first-stage init cannot remount procfs from inside this LXC.
+    # Mount it with Android's process-hiding policy in LXC instead, while
+    # retaining the proc/sys protections of LXC's automatic proc:mixed mode.
+    # AID_READPROC is 3009 in the pinned Android 16 filesystem config.
+    if grep -qx 'lxc.mount.auto = cgroup:ro sys:ro proc' "${config_base}"; then
+        sed -i 's|^lxc.mount.auto = cgroup:ro sys:ro proc$|lxc.mount.auto = cgroup:ro sys:ro|' \
+            "${config_base}"
+        printf '%s\n' \
+            'lxc.mount.entry = proc proc proc rw,remount,nodev,nosuid,noexec,relatime,hidepid=2,gid=3009 0 0' \
+            'lxc.mount.entry = proc/sys proc/sys proc ro,bind,relative 0 0' \
+            'lxc.mount.entry = proc/sys/net proc/sys/net proc rw,bind,relative 0 0' \
+            'lxc.mount.entry = proc/sysrq-trigger proc/sysrq-trigger proc ro,bind,relative 0 0' \
+            >> "${config_base}"
+    else
+        bbfatal "unexpected Waydroid proc mount policy in ${config_base}"
+    fi
+}
+
 do_install:append:imx8mm-jaguar-screen() {
     install -Dm644 -t "${D}${sysconfdir}" "${WORKDIR}/gbinder.conf"
     install -m 755 ${WORKDIR}/waydroid-net.sh ${D}/usr/lib/waydroid/data/scripts/waydroid-net.sh
@@ -167,6 +187,7 @@ do_install:append:imx8mm-jaguar-screen() {
     elif ! grep -qx 'lxc.hook.post-stop = /bin/true' "${config_base}"; then
         bbfatal "unexpected Waydroid post-stop hook in ${config_base}"
     fi
+    configure_waydroid_lxc_proc "${config_base}"
 
     # The display controller is card2 on this board; card0 is the boot
     # framebuffer and card1 is the render-only Etnaviv node.  Pinning card2
@@ -205,6 +226,8 @@ do_install:append:imx95-frdm-evk() {
     elif ! grep -qx 'lxc.hook.post-stop = /bin/true' "${config_base}"; then
         bbfatal "unexpected Waydroid post-stop hook in ${config_base}"
     fi
+
+    configure_waydroid_lxc_proc "${config_base}"
 
     install -Dm0755 ${WORKDIR}/waydroid-product-wait \
         ${D}${libexecdir}/waydroid-product-wait
