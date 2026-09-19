@@ -6,18 +6,20 @@ set -euo pipefail
 usage() {
     cat >&2 <<'EOF'
 usage: ./program-imx95.sh check|program|bootloader|verify
+       ./program-imx95.sh resume-fastboot MX95_ROM_SERIAL
 
   check    verify the bundle and require exactly one i.MX95 in serial-download mode
   program  program the complete Foundries image; no read-back verification
   bootloader  update both production boot sets; retain the WIC/root filesystem
   verify   run the separate, optional WIC read-back CRC
+  resume-fastboot  finish full programming on the same MX95 already in Fastboot
 EOF
     exit 2
 }
 
 mode=${1:-}
 case "$mode" in
-    check|program|bootloader|verify) ;;
+    check|program|bootloader|verify|resume-fastboot) ;;
     *) usage ;;
 esac
 
@@ -46,7 +48,30 @@ if [[ "$mode" == verify ]]; then
 elif [[ "$mode" == bootloader ]]; then
     script="${bundle}/bootloader.uuu"
 fi
+
+# A ROM-to-Fastboot transition can leave UUU reporting exit 0 after only the
+# SDPS command. The explicit recovery path uses only the FB commands from the
+# checksum-verified full-image script, and is bound to the observed MX95 ROM
+# serial so a shared 1fc9:0152 Fastboot PID cannot select an i.MX8 board.
+if [[ "$mode" == resume-fastboot ]]; then
+    expected_serial=${2:-}
+    if [[ ! "$expected_serial" =~ ^[[:xdigit:]]{16}$ ]]; then
+        printf 'resume-fastboot requires the 16-hex-digit MX95 ROM serial.\n' >&2
+        exit 2
+    fi
+    expected_serial=${expected_serial^^}
+    resume_script=$(mktemp --suffix=.uuu "${bundle}/.fb-resume.XXXXXX")
+    trap 'rm -f -- "$resume_script"' EXIT
+    awk '/^uuu_version / || /^FB(:|\[)/ { print }' "$script" > "$resume_script"
+    script=$resume_script
+fi
+
 "$uuu" -dry "$script" >/dev/null
+fb_total=$(grep -Ec '^FB(:|\[)' "$script")
+if [[ "$fb_total" -lt 1 ]] || ! grep -Fqx 'FB: done' <(tail -n 1 "$script"); then
+    printf 'Refusing script without a complete Fastboot stage: %s\n' "$script" >&2
+    exit 2
+fi
 
 device_output=$("$uuu" -lsusb 2>&1)
 printf '%s\n' "$device_output"
@@ -58,7 +83,16 @@ mx95_lines=$(printf '%s\n' "$device_output" |
          toupper($0) ~ /0X1FC9/ && toupper($0) ~ /0X015[CD]/')
 mx95_count=$(printf '%s\n' "$mx95_lines" | awk 'NF { count++ } END { print count + 0 }')
 
-if [[ "$mx95_count" -ne 1 ]]; then
+if [[ "$mode" == resume-fastboot ]]; then
+    fb_count=$(printf '%s\n' "$device_output" |
+        awk -v serial="$expected_serial" 'toupper($0) ~ /FB:/ &&
+             toupper($0) ~ /0X1FC9/ && toupper($0) ~ /0X0152/ &&
+             toupper($0) ~ serial { count++ } END { print count + 0 }')
+    if [[ "$fb_count" -ne 1 ]]; then
+        printf 'Refusing resume: expected exactly one 1fc9:0152 Fastboot device with MX95 ROM serial %s.\n' "$expected_serial" >&2
+        exit 3
+    fi
+elif [[ "$mx95_count" -ne 1 ]]; then
     printf '%s\n' \
         'Refusing to run: expected exactly one MX95 SDPS device (1fc9:015c or 1fc9:015d).' \
         'Power off, set FRDM SW1-1 OFF / SW1-2 ON, connect USB1 J3, then power on.' >&2
@@ -83,10 +117,26 @@ printf 'Starting %s with %s\n' "$mode" "$script"
 printf 'UUU transcript: %s\n' "$log"
 cd "$root"
 set +e
-"$uuu" "$script" 2>&1 | tee "$log"
+"$uuu" -v "$script" 2>&1 | tee "$log"
 uuu_status=${PIPESTATUS[0]}
 set -e
 
 printf 'UUU exit code: %s\n' "$uuu_status" | tee -a "$log"
 printf 'UUU log bytes: %s\n' "$(wc -c < "$log")" | tee -a "$log"
-exit "$uuu_status"
+if [[ "$uuu_status" -ne 0 ]]; then
+    exit "$uuu_status"
+fi
+
+# The non-verbose TUI can exit zero after SDPS alone, and its progress display
+# is not a reliable log format. Verbose UUU emits one Start Cmd and Okay per
+# completed command, including FB: done; require the complete FB command set.
+fb_started=$(grep -ac '>Start Cmd:FB' "$log" || true)
+commands_ok=$(grep -ac '>.*Okay (' "$log" || true)
+if [[ "$fb_started" -ne "$fb_total" || "$commands_ok" -lt "$fb_total" ]] ||
+   ! grep -aFq 'Start Cmd:FB: done' "$log" ||
+   grep -aEq 'Failure[[:space:]]+[1-9]' "$log"; then
+    printf 'ERROR: UUU exited zero without proof of all %s Fastboot commands and FB: done (started=%s, okay=%s); flash is NOT verified.\n' "$fb_total" "$fb_started" "$commands_ok" | tee -a "$log" >&2
+    exit 5
+fi
+
+printf 'PASS: UUU completed all %s Fastboot commands and FB: done.\n' "$fb_total" | tee -a "$log"
