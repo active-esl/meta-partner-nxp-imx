@@ -27,12 +27,21 @@ imx_boot_append="$repo/recipes-bsp/imx-mkimage/imx-boot_%.bbappend"
 waydroid_append="$repo/recipes-support/waydroid/waydroid.bbappend"
 frdm_fstab="$repo/recipes-core/base-files/base-files/imx95-frdm-evk/fstab"
 fw_env_config="$repo/recipes-bsp/u-boot/u-boot-fio-2025.04/fw_env.config"
+production_env_cfg="$repo/recipes-bsp/u-boot/u-boot-fio/imx95-frdm-evk/lmp-spl-fit.cfg"
+production_boot_cfg="$repo/recipes-bsp/u-boot/u-boot-fio/imx95-frdm-evk/ostree-boot.cfg"
 
 # libubootenv reads /mnt/boot/uboot.env on this machine.  Without an fstab
 # automount, aktualizr-lite cannot reset bootcount or arm verified rollback.
 grep -Eq '^/dev/mmcblk0p1[[:space:]]+/mnt/boot[[:space:]]+vfat[[:space:]]+[^[:space:]]*x-systemd\.automount' "$frdm_fstab"
 grep -Eq '^/dev/mmcblk0p1[[:space:]]+/mnt/boot[[:space:]]+vfat[[:space:]]+[^[:space:]]*sync' "$frdm_fstab"
 grep -Eq '^/mnt/boot/uboot\.env[[:space:]]+0x0000[[:space:]]+0x4000$' "$fw_env_config"
+grep -Fqx '# CONFIG_ENV_IS_IN_MMC is not set' "$production_env_cfg"
+grep -Fqx '# CONFIG_ENV_IS_NOWHERE is not set' "$production_env_cfg"
+grep -Fqx 'CONFIG_ENV_IS_IN_FAT=y' "$production_env_cfg"
+grep -Fqx 'CONFIG_ENV_FAT_DEVICE_AND_PART="0:1"' "$production_env_cfg"
+grep -Fqx 'CONFIG_CMD_NVEDIT_INFO=y' "$production_env_cfg"
+grep -Fq 'if env info -p -d -q; then env save; fi' "$production_boot_cfg"
+grep -Fq 'LMP_BOOT_FIRMWARE_VERSION:imx95-frdm-evk = "3"' "$machine_conf"
 
 for script in "$mfgdir/full_image.uuu.in" "$mfgdir/bootloader.uuu.in"; do
     # These dollar expressions are intentional literals from the UUU script.
