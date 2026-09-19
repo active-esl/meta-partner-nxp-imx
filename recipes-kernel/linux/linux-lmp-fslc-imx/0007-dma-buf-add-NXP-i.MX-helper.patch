@@ -1,0 +1,409 @@
+From 4942314c560d348610ab81099e6d3942c4baef90 Mon Sep 17 00:00:00 2001
+From: Dynamic Devices BSP Team <support@dynamicdevices.co.uk>
+Date: Sat, 19 Sep 2026 09:15:00 +0100
+Subject: [PATCH] dma-buf: add NXP i.MX helper
+
+NXP's Android graphics and multimedia libraries require /dev/dmabuf_imx
+to query DMA-BUF heap names and physical addresses and to synchronize
+cache access. Carry the helper from NXP's Android 16.0.0_2.0.0 kernel tag
+onto the matching LmP 6.12 i.MX kernel.
+
+Upstream-Status: Backport [NXP android-16.0.0_2.0.0]
+Signed-off-by: Dynamic Devices BSP Team <support@dynamicdevices.co.uk>
+---
+ drivers/dma-buf/Kconfig          |   8 +
+ drivers/dma-buf/Makefile         |   1 +
+ drivers/dma-buf/dma-buf-imx.c    | 301 ++++++++++++++++++++++++++++++++++++++++
+ include/uapi/linux/dma-buf-imx.h |  44 ++++++
+ 4 files changed, 354 insertions(+)
+
+diff --git a/drivers/dma-buf/Kconfig b/drivers/dma-buf/Kconfig
+index b46eb8a..90d1851 100644
+--- a/drivers/dma-buf/Kconfig
++++ b/drivers/dma-buf/Kconfig
+@@ -90,6 +90,14 @@ menuconfig DMABUF_SYSFS_STATS
+ 	   Android is the only user of this and it turned out that this resulted
+ 	   in quite some performance problems.
+ 
++config DMABUF_IMX
++	tristate "i.MX DMA-BUF helper"
++	depends on ARCH_MXC && DMABUF_HEAPS
++	help
++	  Expose the NXP i.MX DMA-BUF helper used by the Android graphics and
++	  multimedia stacks to query heap names, physical addresses, and perform
++	  cache synchronization.
++
+ source "drivers/dma-buf/heaps/Kconfig"
+ 
+ endmenu
+diff --git a/drivers/dma-buf/Makefile b/drivers/dma-buf/Makefile
+index 70ec901..67b53b1 100644
+--- a/drivers/dma-buf/Makefile
++++ b/drivers/dma-buf/Makefile
+@@ -7,6 +7,7 @@ obj-$(CONFIG_SYNC_FILE)		+= sync_file.o
+ obj-$(CONFIG_SW_SYNC)		+= sw_sync.o sync_debug.o
+ obj-$(CONFIG_UDMABUF)		+= udmabuf.o
+ obj-$(CONFIG_DMABUF_SYSFS_STATS) += dma-buf-sysfs-stats.o
++obj-$(CONFIG_DMABUF_IMX)	+= dma-buf-imx.o
+ 
+ dmabuf_selftests-y := \
+ 	selftest.o \
+diff --git a/drivers/dma-buf/dma-buf-imx.c b/drivers/dma-buf/dma-buf-imx.c
+new file mode 100644
+index 0000000..0a4e234
+--- /dev/null
++++ b/drivers/dma-buf/dma-buf-imx.c
+@@ -0,0 +1,301 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++/*
++ * Copyright 2021 NXP
++ */
++
++#include <linux/module.h>
++#include <linux/types.h>
++#include <linux/kernel.h>
++#include <linux/fs.h>
++#include <linux/errno.h>
++#include <linux/cdev.h>
++#include <asm/uaccess.h>
++#include <linux/device.h>
++#include <linux/uaccess.h>
++#include <linux/dma-buf.h>
++#include <linux/dma-buf-imx.h>
++
++#define DMABUF_NUM_MINORS 256
++static dev_t dmabuf_dev_imx;
++static struct class *dmabuf_class;
++static struct cdev cdev;
++static DEFINE_MUTEX(dev_lock);
++
++static void dma_buf_ioc_phy_release(struct device *dev)
++{
++	return;
++}
++
++static void dma_buf_ioc_sync_release(struct device *dev)
++{
++	return;
++}
++
++static unsigned long dma_buf_get_contiguous_size(struct sg_table *sgt)
++{
++       struct scatterlist *s;
++       dma_addr_t expected = sg_dma_address(sgt->sgl);
++       unsigned int i;
++       unsigned long size = 0;
++
++       for_each_sgtable_dma_sg(sgt, s, i) {
++               if (sg_dma_address(s) != expected)
++                       break;
++               expected += sg_dma_len(s);
++               size += sg_dma_len(s);
++       }
++       return size;
++}
++
++static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
++{
++	switch (cmd) {
++	case DMABUF_GET_PHYS:
++	{
++		struct dma_buf *dmabuf;
++		struct device dev;
++		unsigned long phys = 0;
++		struct dma_buf_attachment *attachment = NULL;
++		struct sg_table *sgt = NULL;
++		struct dmabuf_imx_phys_data data;
++		int ret;
++
++		// copy dmabuf_imx_phys_data from user space to kernel space
++		if (copy_from_user(&data, (void __user *)arg,
++			sizeof(struct dmabuf_imx_phys_data)))
++			return -EFAULT;
++
++		// get the dmafd from user space.
++		// dma_buf is from dma_buf_get according the dma fd.
++		dmabuf = dma_buf_get(data.dmafd);
++		if (!dmabuf || IS_ERR(dmabuf)) {
++			return -EFAULT;
++		}
++
++		memset(&dev, 0, sizeof(dev));
++		mutex_lock(&dev_lock);
++		device_initialize(&dev);
++		dev.coherent_dma_mask = DMA_BIT_MASK(64);
++		dev.dma_mask = &dev.coherent_dma_mask;
++		dev.parent = NULL;
++		dev.release = dma_buf_ioc_phy_release;
++		dev_set_name(&dev, "dma_phy");
++		ret = device_add(&dev);
++		if (ret < 0) {
++			put_device(&dev);
++			dma_buf_put(dmabuf);
++			mutex_unlock(&dev_lock);
++			return ret;
++		}
++
++		attachment = dma_buf_attach(dmabuf, &dev);
++		if (!attachment || IS_ERR(attachment)) {
++			device_del(&dev);
++			put_device(&dev);
++			dma_buf_put(dmabuf);
++			mutex_unlock(&dev_lock);
++			return -EFAULT;
++		}
++
++		sgt = dma_buf_map_attachment_unlocked(attachment, DMA_BIDIRECTIONAL);
++		if (sgt && !IS_ERR(sgt)) {
++			if (dma_buf_get_contiguous_size(sgt) == dmabuf->size)
++				phys = sg_dma_address(sgt->sgl);
++			else
++				pr_warn("DMA_BUF_IOCTL_PHYS: DMA buffer is not contiguous\n");
++			dma_buf_unmap_attachment_unlocked(attachment, sgt,
++				DMA_BIDIRECTIONAL);
++		}
++
++		dma_buf_detach(dmabuf, attachment);
++
++		data.phys = phys;
++		dma_buf_put(dmabuf);
++
++		device_del(&dev);
++		put_device(&dev);
++		mutex_unlock(&dev_lock);
++		// put the phys address to user space through dmabuf_imx_phys_data
++		if (copy_to_user((void __user *)arg, &data,
++			sizeof(struct dmabuf_imx_phys_data)))
++			return -EFAULT;
++		return 0;
++	}
++
++	case DMABUF_GET_HEAP_NAME:{
++		struct dma_buf *dmabuf;
++		struct dmabuf_imx_heap_name data;
++		// copy dmabuf_imx_heap_name from user space to kernel space
++		if (copy_from_user(&data, (void __user *)arg,
++			sizeof(struct dmabuf_imx_heap_name)))
++			return -EFAULT;
++
++		// get the dmafd from user space.
++		// dma_buf is from dma_buf_get according the dma fd.
++		dmabuf = dma_buf_get(data.dmafd);
++		if (!dmabuf || IS_ERR(dmabuf)) {
++			return -EFAULT;
++		}
++
++		strscpy(data.name, dmabuf->exp_name, sizeof(data.name));
++		dma_buf_put(dmabuf);
++
++		// put the phys address to user space through dmabuf_imx_heap_name
++		if (copy_to_user((void __user *)arg, &data,
++			sizeof(struct dmabuf_imx_heap_name)))
++			return -EFAULT;
++		return 0;
++	}
++
++	case DMABUF_SYNC: {
++		struct dma_buf *dmabuf = NULL;
++		struct device dev;
++		struct dma_buf_attachment *attachment = NULL;
++		struct sg_table *sgt = NULL;
++		struct dmabuf_imx_sync data;
++		struct iosys_map map;
++		int ret = 0;
++
++		// copy dmabuf_imx_sync from user space to kernel space
++		if (copy_from_user(&data, (void __user *)arg,
++			sizeof(struct dmabuf_imx_sync)))
++			return -EFAULT;
++
++		// get the dmafd from user space.
++		// dma_buf is from dma_buf_get according the dma fd.
++		dmabuf = dma_buf_get(data.dmafd);
++		if (!dmabuf || IS_ERR(dmabuf)) {
++			return -EFAULT;
++		}
++
++		memset(&dev, 0, sizeof(dev));
++
++		mutex_lock(&dev_lock);
++
++		device_initialize(&dev);
++		dev.coherent_dma_mask = DMA_BIT_MASK(64);
++		dev.dma_mask = &dev.coherent_dma_mask;
++		dev.parent = NULL;
++		dev.release = dma_buf_ioc_sync_release;
++		dev_set_name(&dev, "dma_sync");
++		ret = device_add(&dev);
++		if (ret < 0) {
++			put_device(&dev);
++			dma_buf_put(dmabuf);
++			mutex_unlock(&dev_lock);
++			return ret;
++		}
++
++		attachment = dma_buf_attach(dmabuf, &dev);
++		if (!attachment || IS_ERR(attachment)) {
++			dev_err(&dev, "%s: dma_buf_attach failed\n", __func__);
++			ret = -EFAULT;
++			goto finish;
++		}
++
++		sgt = dma_buf_map_attachment_unlocked(attachment, DMA_BIDIRECTIONAL);
++		if (!sgt || IS_ERR(sgt)) {
++			dev_err(&dev, "%s: dma_buf_map_attachment_unlocked failed, sgt %p\n", __func__, sgt);
++			ret = -EFAULT;
++			goto finish;
++		}
++
++		memset(&map, 0, sizeof(map));
++		ret = dma_buf_vmap_unlocked(dmabuf, &map);
++		if (ret) {
++			dev_err(&dev, "%s: dma_buf_vmap_unlocked failed, ret %d\n", __func__, ret);
++			map.vaddr = NULL;
++			ret = -EFAULT;
++			goto finish;
++		}
++
++		dev_dbg(&dev, "%s: attachment %px, sgt %p, vaddr %px\n", __func__, attachment, sgt, map.vaddr);
++
++		// do the sync
++		if (data.operation == FLUSH_CACHE) {
++			ret = dma_buf_end_cpu_access(dmabuf, DMA_TO_DEVICE);
++		}	else {
++			ret = dma_buf_begin_cpu_access(dmabuf, DMA_FROM_DEVICE);
++		}
++
++finish:
++		if (map.vaddr)
++			dma_buf_vunmap_unlocked(dmabuf, &map);
++
++		if (sgt)
++			dma_buf_unmap_attachment_unlocked(attachment, sgt, DMA_BIDIRECTIONAL);
++
++		if (attachment)
++			dma_buf_detach(dmabuf, attachment);
++
++		device_del(&dev);
++		put_device(&dev);
++		dma_buf_put(dmabuf);
++		mutex_unlock(&dev_lock);
++
++		return ret;
++	}
++
++	default:
++		return -ENOTTY;
++	}
++}
++
++static const struct file_operations ion_fops = {
++	.owner = THIS_MODULE,
++	.unlocked_ioctl = ion_ioctl,
++	.compat_ioctl = ion_ioctl,
++};
++
++static int dmabuf_imx_init(void)
++{
++	int rc;
++	struct device *dev;
++	if ((rc = alloc_chrdev_region(&dmabuf_dev_imx, 0, DMABUF_NUM_MINORS, "dmabuf_imx"))) {
++		pr_err("Unable to allocate major number: %i\n", rc);
++		goto err1;
++	}
++
++	cdev_init(&cdev, &ion_fops);
++	cdev.owner = THIS_MODULE;
++	rc = cdev_add(&cdev, dmabuf_dev_imx, 1);
++
++	dmabuf_class = class_create("dmabuf_imx");
++	if (IS_ERR(dmabuf_class)) {
++		pr_err("Unable to create imx ion class\n");
++		rc = PTR_ERR(dmabuf_class);
++		goto err2;
++	}
++
++	dev = device_create(dmabuf_class, NULL, dmabuf_dev_imx, NULL, "dmabuf_imx");
++	if (IS_ERR(dev)) {
++		pr_err("Unable to create imx ion device\n");
++		rc = PTR_ERR(dev);
++		goto err3;
++	}
++
++	return 0;
++
++err3:
++	class_destroy(dmabuf_class);
++err2:
++	unregister_chrdev_region(dmabuf_dev_imx, DMABUF_NUM_MINORS);
++err1:
++	return rc;
++}
++
++static void dmabuf_imx_exit(void)
++{
++	cdev_del(&cdev);
++	device_destroy(dmabuf_class, dmabuf_dev_imx);
++	class_destroy(dmabuf_class);
++	unregister_chrdev_region(dmabuf_dev_imx, DMABUF_NUM_MINORS);
++}
++
++module_init(dmabuf_imx_init);
++module_exit(dmabuf_imx_exit);
++
++MODULE_AUTHOR("NXP Semiconductor, Inc.");
++MODULE_DESCRIPTION("imx dmabuf driver");
++MODULE_LICENSE("GPL");
++MODULE_IMPORT_NS("DMA_BUF");
+diff --git a/include/uapi/linux/dma-buf-imx.h b/include/uapi/linux/dma-buf-imx.h
+new file mode 100644
+index 0000000..4323024
+--- /dev/null
++++ b/include/uapi/linux/dma-buf-imx.h
+@@ -0,0 +1,44 @@
++/*
++ * Copyright 2021 NXP
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
++ *
++ */
++#ifndef _LINUX_DMABUF_IMX_H
++#define _LINUX_DMABUF_IMX_H
++
++#include <linux/types.h>
++
++struct dmabuf_imx_phys_data {
++	__u32 dmafd;
++	__u64 phys;
++};
++struct dmabuf_imx_heap_name {
++	__u32 dmafd;
++	__u8 name[32];
++};
++
++#define FLUSH_CACHE 0
++#define INVALIDATE_CACHE 1
++struct dmabuf_imx_sync {
++  __u32 dmafd;
++  __u32 operation;
++};
++
++#define DMABUF_GET_PHYS   _IOWR('M', 32, struct dmabuf_imx_phys_data)
++#define DMABUF_GET_HEAP_NAME   _IOWR('M', 33, struct dmabuf_imx_heap_name)
++#define DMABUF_SYNC   _IOWR('M', 34, struct dmabuf_imx_sync)
++
++#endif
+-- 
+2.51.0
