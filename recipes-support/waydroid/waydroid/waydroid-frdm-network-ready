@@ -1,0 +1,29 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+
+set -eu
+
+container=waydroid
+lxc_path=/var/lib/waydroid/lxc
+remaining=90
+
+while [ "${remaining}" -gt 0 ]; do
+    state=$(lxc-info -P "${lxc_path}" -n "${container}" -sH 2>/dev/null || true)
+    [ "${state}" = RUNNING ] && break
+    sleep 1
+    remaining=$((remaining - 1))
+done
+
+if [ "${state:-}" != RUNNING ]; then
+    echo "Waydroid LXC did not reach RUNNING state" >&2
+    exit 1
+fi
+
+# LXC installs the nested proc/sys/net bind after the read-only proc/sys bind.
+# Linux retains the parent bind's read-only flag on this kernel, so Android's
+# IpClient cannot set per-interface networking sysctls until this exact mount
+# is remounted. Keep the rest of proc/sys read-only.
+timeout 10 /usr/bin/waydroid --details-to-stdout shell -C -L -- \
+    mount -o remount,rw /proc/sys/net
+timeout 10 /usr/bin/waydroid --details-to-stdout shell -C -L -- \
+    grep -q ' /proc/sys/net proc rw,' /proc/mounts

@@ -35,5 +35,8 @@ jobs:
       - name: Verify Waydroid LXC proc policy source
         run: ./test-plan/check-waydroid-lxc-proc-source.sh
 
+      - name: Verify FRDM Waydroid acceleration and network integration
+        run: ./test-plan/check-waydroid-frdm-acceleration-source.sh
+
       - name: Verify Waydroid immutable-image provisioning order
         run: ./test-plan/check-waydroid-image-provision-source.sh

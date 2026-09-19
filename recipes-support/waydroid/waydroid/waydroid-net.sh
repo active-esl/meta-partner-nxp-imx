@@ -32,13 +32,13 @@ LXC_IPV6_MASK=""
 LXC_IPV6_NETWORK=""
 LXC_IPV6_NAT="false"
 
-IPTABLES_BIN="$(command -v iptables-legacy)"
+IPTABLES_BIN="$(command -v iptables)"
 if [ ! -n "$IPTABLES_BIN" ]; then
-    IPTABLES_BIN="$(command -v iptables)"
+    IPTABLES_BIN="$(command -v iptables-legacy)"
 fi
-IP6TABLES_BIN="$(command -v ip6tables-legacy)"
+IP6TABLES_BIN="$(command -v ip6tables)"
 if [ ! -n "$IP6TABLES_BIN" ]; then
-    IP6TABLES_BIN="$(command -v ip6tables)"
+    IP6TABLES_BIN="$(command -v ip6tables-legacy)"
 fi
 
 use_nft() {
