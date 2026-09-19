@@ -102,7 +102,22 @@ fi
 
 header "2. Foundries update and container surfaces"
 conditional "OSTree deployment" 1 "test -d /ostree/deploy && ostree admin status"
-conditional "U-Boot environment" 1 "$SUDO fw_printenv bootcount"
+if grep -Eq '^[^#]*[[:space:]]/mnt/boot[[:space:]].*x-systemd\.automount' /etc/fstab; then
+    row "Boot partition automount policy" "x-systemd.automount configured for /mnt/boot" PASS; P
+else
+    row "Boot partition automount policy" "missing /mnt/boot automount in /etc/fstab" FAIL; F
+fi
+# Access through libubootenv must trigger the automount; mounting manually here
+# would hide the exact update/rollback defect this gate is intended to catch.
+if fw_env=$($SUDO fw_printenv 2>&1) &&
+   printf '%s\n' "$fw_env" | grep -q '^bootcount=' &&
+   printf '%s\n' "$fw_env" | grep -q '^bootlimit=3$' &&
+   printf '%s\n' "$fw_env" | grep -q '^upgrade_available=' &&
+   printf '%s\n' "$fw_env" | grep -q '^rollback='; then
+    row "U-Boot rollback environment" "bootcount, bootlimit, upgrade and rollback variables readable" PASS; P
+else
+    row "U-Boot rollback environment" "${fw_env:-fw_printenv failed}" FAIL; F
+fi
 conditional "Docker daemon" 1 "$SUDO docker info"
 if systemctl list-unit-files aktualizr-lite.service >/dev/null 2>&1; then
     row "aktualizr-lite unit" "installed; registration state is product-specific" PASS; P
