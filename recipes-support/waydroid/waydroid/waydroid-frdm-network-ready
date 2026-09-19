@@ -5,17 +5,30 @@ set -eu
 
 container=waydroid
 lxc_path=/var/lib/waydroid/lxc
-remaining=90
+deadline=$(($(date +%s) + 150))
 
-while [ "${remaining}" -gt 0 ]; do
+while [ "$(date +%s)" -lt "${deadline}" ]; do
     state=$(lxc-info -P "${lxc_path}" -n "${container}" -sH 2>/dev/null || true)
     [ "${state}" = RUNNING ] && break
     sleep 1
-    remaining=$((remaining - 1))
 done
 
 if [ "${state:-}" != RUNNING ]; then
     echo "Waydroid LXC did not reach RUNNING state" >&2
+    exit 1
+fi
+
+# Android init reapplies the read-only proc policy after LXC reaches RUNNING.
+# Wait until netd is up so our narrower remount is the final mount operation.
+while [ "$(date +%s)" -lt "${deadline}" ]; do
+    netd=$(timeout 3 /usr/bin/waydroid --details-to-stdout shell -C -L -- \
+        getprop init.svc.netd 2>/dev/null || true)
+    [ "${netd}" = running ] && break
+    sleep 1
+done
+
+if [ "${netd:-}" != running ]; then
+    echo "Android netd did not reach running state" >&2
     exit 1
 fi
 
@@ -26,4 +39,4 @@ fi
 timeout 10 /usr/bin/waydroid --details-to-stdout shell -C -L -- \
     mount -o remount,rw /proc/sys/net
 timeout 10 /usr/bin/waydroid --details-to-stdout shell -C -L -- \
-    grep -q ' /proc/sys/net proc rw,' /proc/mounts
+    grep -q ' /proc/sys/net rw,' /proc/self/mountinfo

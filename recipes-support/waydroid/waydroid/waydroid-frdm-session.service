@@ -14,7 +14,9 @@ Environment=XDG_RUNTIME_DIR=/run
 Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/waydroid-frdm/bus
 Environment=WAYLAND_DISPLAY=wayland-0
 ExecStart=/usr/bin/waydroid session start
-ExecStartPost=/usr/libexec/waydroid-frdm-network-ready
+# The readiness helper inspects LXC and remounts Android's /proc/sys/net.
+# Keep the graphical session unprivileged, but run this helper as root.
+ExecStartPost=+/usr/libexec/waydroid-frdm-network-ready
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=180
