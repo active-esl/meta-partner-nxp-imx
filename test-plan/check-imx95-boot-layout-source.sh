@@ -25,6 +25,14 @@ kas_v96="$repo/kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml"
 kas_accel="$repo/kas/lmp-v96-imx95-frdm-evk-6.12-partner-acceleration.yml"
 imx_boot_append="$repo/recipes-bsp/imx-mkimage/imx-boot_%.bbappend"
 waydroid_append="$repo/recipes-support/waydroid/waydroid.bbappend"
+frdm_fstab="$repo/recipes-core/base-files/base-files/imx95-frdm-evk/fstab"
+fw_env_config="$repo/recipes-bsp/u-boot/u-boot-fio-2025.04/fw_env.config"
+
+# libubootenv reads /mnt/boot/uboot.env on this machine.  Without an fstab
+# automount, aktualizr-lite cannot reset bootcount or arm verified rollback.
+grep -Eq '^/dev/mmcblk0p1[[:space:]]+/mnt/boot[[:space:]]+vfat[[:space:]]+[^[:space:]]*x-systemd\.automount' "$frdm_fstab"
+grep -Eq '^/dev/mmcblk0p1[[:space:]]+/mnt/boot[[:space:]]+vfat[[:space:]]+[^[:space:]]*sync' "$frdm_fstab"
+grep -Eq '^/mnt/boot/uboot\.env[[:space:]]+0x0000[[:space:]]+0x4000$' "$fw_env_config"
 
 for script in "$mfgdir/full_image.uuu.in" "$mfgdir/bootloader.uuu.in"; do
     # These dollar expressions are intentional literals from the UUU script.
