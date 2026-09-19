@@ -38,7 +38,8 @@ fw_printenv >/dev/null
 ensure_variable() {
     name=$1
     value=$2
-    fw_printenv -n "${name}" >/dev/null 2>&1 || fw_setenv "${name}" "${value}"
+    current=$(fw_printenv -n "${name}" 2>/dev/null || true)
+    [ -n "${current}" ] || fw_setenv "${name}" "${value}"
 }
 
 ensure_variable bootcount 0
