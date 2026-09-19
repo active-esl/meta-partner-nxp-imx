@@ -33,6 +33,7 @@ append_node_once() {
 
 test -s "${base_props}"
 test -s "${nodes}"
+test -c /dev/dma_heap/linux,cma
 test -c /dev/dma_heap/linux,cma-uncached
 test -c /dev/dma_heap/system
 test -c /dev/dmabuf_imx
@@ -52,8 +53,8 @@ remove_property debug.stagefright.ccodec
 # exposes the same heaps as linux,cma-uncached and system.  Map only those two
 # nodes into the container. NXP's reference i.MX95 uevent rules make these
 # heaps available to application-side Codec2 allocators.
-chown 1000:1003 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
-chmod 0666 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+chown 1000:1003 /dev/dma_heap/linux,cma /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+chmod 0666 /dev/dma_heap/linux,cma /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
 append_node_once 'lxc.mount.entry = /dev/dma_heap/linux,cma-uncached dev/dma_heap/reserved-uncached none bind,create=file 0 0'
 append_node_once 'lxc.mount.entry = /dev/dma_heap/system dev/dma_heap/system-uncached none bind,create=file 0 0'
 

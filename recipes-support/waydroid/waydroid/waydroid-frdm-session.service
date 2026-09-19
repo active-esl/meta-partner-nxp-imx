@@ -1,7 +1,7 @@
 [Unit]
 Description=Waydroid graphical session on FRDM-IMX95
-Requires=waydroid-frdm-container.service waydroid-frdm-dbus.service weston.service
-After=waydroid-frdm-container.service waydroid-frdm-dbus.service weston.service
+Requires=waydroid-container.service waydroid-frdm-dbus.service weston.service
+After=waydroid-container.service waydroid-frdm-dbus.service weston.service
 BindsTo=weston.service
 
 [Service]
@@ -17,6 +17,9 @@ ExecStart=/usr/bin/waydroid session start
 # The readiness helper inspects LXC and remounts Android's /proc/sys/net.
 # Keep the graphical session unprivileged, but run this helper as root.
 ExecStartPost=+/usr/libexec/waydroid-frdm-network-ready
+# Android starts the LXC guest from this command. Restore the numeric device
+# ownership after the readiness helper confirms that setup has completed.
+ExecStartPost=+/usr/libexec/waydroid-frdm-device-permissions
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=180

@@ -19,7 +19,7 @@ chmod 0660 /dev/video0 /dev/video1 /dev/video2 /dev/video3
 
 # These nodes are used by Android graphics and media processes with different
 # service IDs, matching NXP's uevent permissions.
-chown 1000:1003 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
-chmod 0666 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+chown 1000:1003 /dev/dma_heap/linux,cma /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+chmod 0666 /dev/dma_heap/linux,cma /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
 chown 1000:1000 /dev/dmabuf_imx
 chmod 0666 /dev/dmabuf_imx
