@@ -1,0 +1,12 @@
+[Unit]
+Description=Initialize the FRDM persistent U-Boot environment
+After=local-fs.target
+Before=bootcount.service aktualizr-lite.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/frdm-uboot-env-bootstrap
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

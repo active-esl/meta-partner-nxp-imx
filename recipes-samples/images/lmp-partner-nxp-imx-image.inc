@@ -11,6 +11,7 @@ IMAGE_FEATURES:remove:imx95-frdm-evk = "splash"
 # recipes in the pinned NXP meta-imx release; the partner layer owns selection
 # and Foundries integration, not private copies of vendor components.
 CORE_IMAGE_BASE_INSTALL:append:imx95-frdm-evk = " \
+    frdm-uboot-env-bootstrap \
     packagegroup-partner-nxp-imx95-runtime \
     ${@oe.utils.conditional('DEV_MODE', '1', 'packagegroup-partner-nxp-imx95-validation', '', d)} \
 "
