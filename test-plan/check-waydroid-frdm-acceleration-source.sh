@@ -34,7 +34,8 @@ grep -Fq '/data/resource-cache/** r,' "$apparmor_patch"
 grep -Fq 'IPTABLES_BIN="$(command -v iptables)"' "$network_script"
 grep -Fq 'IP6TABLES_BIN="$(command -v ip6tables)"' "$network_script"
 ! sed -n '/^IPTABLES_BIN=/,/^fi$/p' "$network_script" | head -1 | grep -q iptables-legacy
+grep -Fq 'getprop init.svc.netd' "$network_ready"
 grep -Fq 'mount -o remount,rw /proc/sys/net' "$network_ready"
-grep -Fq "grep -q ' /proc/sys/net proc rw,' /proc/mounts" "$network_ready"
+grep -Fq "grep -q ' /proc/sys/net rw,' /proc/self/mountinfo" "$network_ready"
 
 echo 'FRDM Waydroid acceleration source check passed'
