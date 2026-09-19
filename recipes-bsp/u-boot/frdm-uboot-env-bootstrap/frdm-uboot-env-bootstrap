@@ -1,0 +1,52 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+
+set -eu
+
+payload=/lib/firmware/frdm/uboot.env.initial
+mountpoint=/mnt/boot
+environment=${mountpoint}/uboot.env
+
+test -s "${payload}"
+test "$(stat -c %s "${payload}")" -eq 16384
+
+# Directory access triggers the fstab x-systemd.automount unit. Never mount the
+# partition here: failure of the product mount policy must remain visible.
+ls "${mountpoint}" >/dev/null
+
+repair_environment=false
+if [ ! -s "${environment}" ]; then
+    repair_environment=true
+elif [ "$(stat -c %s "${environment}")" -ne 16384 ]; then
+    repair_environment=true
+elif ! fw_printenv >/dev/null 2>&1; then
+    repair_environment=true
+fi
+
+if ${repair_environment}; then
+    temporary=${mountpoint}/.uboot.env.bootstrap.$$
+    trap 'rm -f "${temporary}"' EXIT HUP INT TERM
+    install -m 0644 "${payload}" "${temporary}"
+    mv "${temporary}" "${environment}"
+    sync
+    trap - EXIT HUP INT TERM
+fi
+
+test "$(stat -c %s "${environment}")" -eq 16384
+fw_printenv >/dev/null
+
+ensure_variable() {
+    name=$1
+    value=$2
+    fw_printenv -n "${name}" >/dev/null 2>&1 || fw_setenv "${name}" "${value}"
+}
+
+ensure_variable bootcount 0
+ensure_variable bootlimit 3
+ensure_variable upgrade_available 0
+ensure_variable bootupgrade_available 0
+ensure_variable bootupgrade_primary_updated 0
+ensure_variable rollback 0
+
+fw_printenv bootcount bootlimit upgrade_available bootupgrade_available \
+    bootupgrade_primary_updated rollback >/dev/null

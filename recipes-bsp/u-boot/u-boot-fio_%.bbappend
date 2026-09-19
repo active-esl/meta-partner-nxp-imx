@@ -28,3 +28,18 @@ SRC_URI:append:imx95-frdm-evk = " \
 # NXP U-Boot currently races its CONFIG_DEFAULT_DEVICE_TREE existence check
 # against parallel DTB builds for this target.
 PARALLEL_MAKE:imx95-frdm-evk = "-j 1"
+
+# Export a CRC-valid image of the complete compiled default environment.  The
+# FRDM bootstrap service uses it to repair boards originally flashed without
+# uboot.env before any OTA agent attempts to write upgrade state.
+UBOOT_INITIAL_ENV:imx95-frdm-evk = "u-boot-initial-env"
+DEPENDS:append:imx95-frdm-evk = " u-boot-tools-native"
+
+do_deploy:append:imx95-frdm-evk() {
+    initial_env="${DEPLOYDIR}/${UBOOT_INITIAL_ENV}-${MACHINE}-sd"
+    test -s "${initial_env}" || bbfatal "missing compiled U-Boot initial environment: ${initial_env}"
+    ${STAGING_BINDIR_NATIVE}/mkenvimage -s 0x4000 \
+        -o "${DEPLOYDIR}/uboot.env-${MACHINE}" "${initial_env}"
+    test "$(stat -c %s "${DEPLOYDIR}/uboot.env-${MACHINE}")" -eq 16384 || \
+        bbfatal "invalid FRDM U-Boot environment image size"
+}
