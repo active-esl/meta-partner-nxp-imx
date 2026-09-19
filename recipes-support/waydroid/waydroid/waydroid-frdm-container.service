@@ -1,0 +1,3 @@
+# Compatibility input for the inherited meta-dynamicdevices FRDM install
+# fragment. The partner-layer do_install append removes this file from ${D}
+# and installs waydroid-frdm-container.conf as a stock-service drop-in.

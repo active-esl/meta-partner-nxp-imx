@@ -43,6 +43,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://waydroid-jaguar-ui.service \
     file://weston-jaguar-waydroid.ini \
     file://90-waydroid-screen.conf \
+    file://waydroid-frdm-container.service \
     file://waydroid-frdm-container.conf \
     file://waydroid-frdm-dbus.service \
     file://waydroid-frdm-session.service \
@@ -232,6 +233,12 @@ do_install:append:raspberrypi4-64() {
 }
 
 do_install:append:imx95-frdm-evk() {
+    # The base meta-dynamicdevices recipe still installs its legacy FRDM
+    # container unit from WORKDIR. Stage the compatibility input above so that
+    # inherited fragment can complete, then remove the unit before packaging;
+    # this product uses the stock D-Bus unit with the drop-in installed below.
+    rm -f ${D}${systemd_system_unitdir}/waydroid-frdm-container.service
+
     install -Dm644 -t "${D}${sysconfdir}" "${WORKDIR}/gbinder.conf"
     install -m 755 ${WORKDIR}/waydroid-net.sh ${D}/usr/lib/waydroid/data/scripts/waydroid-net.sh
 
