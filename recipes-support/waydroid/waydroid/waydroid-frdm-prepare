@@ -35,6 +35,10 @@ test -s "${base_props}"
 test -s "${nodes}"
 test -c /dev/dma_heap/linux,cma-uncached
 test -c /dev/dma_heap/system
+test -c /dev/dmabuf_imx
+for node in /dev/video0 /dev/video1 /dev/video2 /dev/video3; do
+    test -c "${node}"
+done
 
 # The generic host probe cannot see Android's vendor libraries and otherwise
 # forces Mesa/GBM.  This product has the reviewed NXP Mali allocator and EGL.
@@ -46,9 +50,24 @@ remove_property debug.stagefright.ccodec
 
 # NXP's Android allocator asks for these canonical heap names.  The FRDM host
 # exposes the same heaps as linux,cma-uncached and system.  Map only those two
-# nodes into the container and give Android system:graphics access to them.
+# nodes into the container. NXP's reference i.MX95 uevent rules make these
+# heaps available to application-side Codec2 allocators.
 chown 1000:1003 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
-chmod 0660 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+chmod 0666 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
 append_node_once 'lxc.mount.entry = /dev/dma_heap/linux,cma-uncached dev/dma_heap/reserved-uncached none bind,create=file 0 0'
 append_node_once 'lxc.mount.entry = /dev/dma_heap/system dev/dma_heap/system-uncached none bind,create=file 0 0'
 
+# The NXP allocator and Codec2 stack use this helper to identify DMA-BUF
+# exporters and obtain physical addresses. Its major is allocated at runtime.
+dmabuf_major=$(printf '%d' "0x$(stat -c %t /dev/dmabuf_imx)")
+chown 1000:1000 /dev/dmabuf_imx
+chmod 0664 /dev/dmabuf_imx
+append_node_once "lxc.cgroup2.devices.allow = c ${dmabuf_major}:* rwm"
+append_node_once 'lxc.mount.entry = /dev/dmabuf_imx dev/dmabuf_imx none bind,create=file 0 0'
+
+# NXP's Wave6 Codec2 service runs as mediacodec with the camera supplementary
+# group. The V4L2 nodes are already mounted by Waydroid's generated node list;
+# align their group with Android so the service can open them without making
+# the devices world accessible.
+chown 0:1006 /dev/video0 /dev/video1 /dev/video2 /dev/video3
+chmod 0660 /dev/video0 /dev/video1 /dev/video2 /dev/video3
