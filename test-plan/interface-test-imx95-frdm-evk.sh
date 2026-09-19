@@ -176,6 +176,7 @@ if [ "$require_waydroid" -eq 1 ]; then
     fi
 fi
 conditional "Waydroid network bridge" "$require_waydroid" "test -s /run/waydroid-lxc/network_up && ip link show waydroid0"
+conditional "Android writable network sysctls" "$require_waydroid" "timeout 20 waydroid shell -C -L -- grep -q ' /proc/sys/net proc rw,' /proc/mounts"
 conditional "Android routed network" "$require_waydroid" "timeout 20 waydroid shell ping -c 1 -W 5 1.1.1.1"
 conditional "Android DNS" "$require_waydroid" "timeout 20 waydroid shell ping -c 1 -W 5 example.com"
 conditional "Android validated Internet/HTTPS" "$require_waydroid" "timeout 20 waydroid shell dumpsys connectivity 2>/dev/null | grep -q VALIDATED"
