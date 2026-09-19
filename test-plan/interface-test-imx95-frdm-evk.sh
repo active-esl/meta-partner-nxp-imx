@@ -163,7 +163,7 @@ fi
 waydroid_cmd="command -v waydroid >/dev/null 2>&1 || systemctl list-unit-files 2>/dev/null | grep -q '^waydroid-container'"
 conditional "Waydroid userspace/container" "$require_waydroid" "$waydroid_cmd"
 conditional "Waydroid image provisioning" "$require_waydroid" "systemctl is-active --quiet waydroid-image-provision.service"
-conditional "Waydroid FRDM container" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-container.service"
+conditional "Waydroid container" "$require_waydroid" "systemctl is-active --quiet waydroid-container.service"
 conditional "Waydroid FRDM session" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-session.service"
 conditional "Waydroid full-screen UI" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-ui.service"
 conditional "Android boot complete" "$require_waydroid" "timeout 20 waydroid shell getprop sys.boot_completed 2>/dev/null | grep -qx 1"
