@@ -27,6 +27,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://0001-lxc-limit-graphics-device-permissions.patch \
     file://0002-lxc-provide-writable-android-metadata.patch \
     file://0003-platform-use-Android-16-interface-descriptor.patch \
+    file://0004-apparmor-allow-android-resource-cache.patch \
     file://gbinder.conf \
     file://waydroid-luneos.env \
     file://waydroid-luneos-appinfo.json \
@@ -46,6 +47,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://waydroid-frdm-dbus.service \
     file://waydroid-frdm-session.service \
     file://waydroid-frdm-ui.service \
+    file://waydroid-frdm-prepare \
     file://waydroid-product-wait \
 "
 S = "${WORKDIR}/git"
@@ -247,6 +249,8 @@ do_install:append:imx95-frdm-evk() {
 
     install -Dm0755 ${WORKDIR}/waydroid-product-wait \
         ${D}${libexecdir}/waydroid-product-wait
+    install -Dm0755 ${WORKDIR}/waydroid-frdm-prepare \
+        ${D}${libexecdir}/waydroid-frdm-prepare
     install -Dm0644 ${WORKDIR}/waydroid-image-release.conf \
         ${D}${datadir}/waydroid-extra/waydroid-image-release.conf
     install -Dm0644 ${WORKDIR}/waydroid-frdm-container.service \
