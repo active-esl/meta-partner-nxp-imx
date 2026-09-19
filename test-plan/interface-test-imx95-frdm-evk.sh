@@ -167,6 +167,8 @@ conditional "Waydroid container" "$require_waydroid" "systemctl is-active --quie
 conditional "Waydroid FRDM session" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-session.service"
 conditional "Waydroid full-screen UI" "$require_waydroid" "systemctl is-active --quiet waydroid-frdm-ui.service"
 conditional "Android boot complete" "$require_waydroid" "timeout 20 waydroid shell getprop sys.boot_completed 2>/dev/null | grep -qx 1"
+conditional "Arm gralloc DMA-BUF mode" "$require_waydroid" "timeout 20 waydroid shell getprop ro.hardware.gralloc 2>/dev/null | grep -qx arm"
+conditional "i.MX95 DPU imports Waydroid buffers" "$require_waydroid" "! journalctl -k -b 0 --no-pager 2>/dev/null | grep -q 'imx95-dpu.*failed to get dmabuf'"
 if [ "$require_waydroid" -eq 1 ]; then
     release_config=/usr/share/waydroid-extra/waydroid-image-release.conf
     installed_release=/etc/waydroid-extra/images/release.conf
