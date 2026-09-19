@@ -42,6 +42,11 @@ grep -Fq 'file://waydroid-frdm-network-ready' "$recipe"
 grep -Fq 'file://0004-apparmor-allow-android-resource-cache.patch' "$recipe"
 grep -Fq 'replace_property ro.hardware.egl mali' "$prepare"
 grep -Fq 'replace_property ro.hardware.vulkan mali' "$prepare"
+grep -Fq 'replace_property ro.hardware.gralloc arm' "$prepare"
+if grep -Fq 'replace_property ro.hardware.gralloc default' "$prepare"; then
+    echo 'legacy CPU-readback gralloc mode is still selected' >&2
+    exit 1
+fi
 grep -Fq 'remove_property debug.stagefright.ccodec' "$prepare"
 grep -Fq 'dev/dma_heap/reserved-uncached' "$prepare"
 grep -Fq 'dev/dma_heap/system-uncached' "$prepare"

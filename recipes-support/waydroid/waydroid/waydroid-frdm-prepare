@@ -42,10 +42,11 @@ for node in /dev/video0 /dev/video1 /dev/video2 /dev/video3; do
 done
 
 # The generic host probe cannot see Android's vendor libraries and otherwise
-# forces Mesa/GBM.  This product has the reviewed NXP Mali allocator and EGL.
+# forces Mesa/GBM. This product uses NXP's Arm allocator; Waydroid imports its
+# public mapper layout through linux-dmabuf instead of CPU-locking HWC buffers.
 replace_property ro.hardware.egl mali
 replace_property ro.hardware.vulkan mali
-replace_property ro.hardware.gralloc default
+replace_property ro.hardware.gralloc arm
 remove_property gralloc.gbm.device
 remove_property debug.stagefright.ccodec
 
