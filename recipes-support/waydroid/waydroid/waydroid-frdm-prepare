@@ -61,13 +61,12 @@ append_node_once 'lxc.mount.entry = /dev/dma_heap/system dev/dma_heap/system-unc
 # exporters and obtain physical addresses. Its major is allocated at runtime.
 dmabuf_major=$(printf '%d' "0x$(stat -c %t /dev/dmabuf_imx)")
 chown 1000:1000 /dev/dmabuf_imx
-chmod 0664 /dev/dmabuf_imx
+chmod 0666 /dev/dmabuf_imx
 append_node_once "lxc.cgroup2.devices.allow = c ${dmabuf_major}:* rwm"
 append_node_once 'lxc.mount.entry = /dev/dmabuf_imx dev/dmabuf_imx none bind,create=file 0 0'
 
-# NXP's Wave6 Codec2 service runs as mediacodec with the camera supplementary
-# group. The V4L2 nodes are already mounted by Waydroid's generated node list;
-# align their group with Android so the service can open them without making
-# the devices world accessible.
+# Apply the intended modes before startup as well. Waydroid rewrites the host
+# device modes while constructing the container; ExecStartPost reapplies them
+# after LXC reaches RUNNING.
 chown 0:1006 /dev/video0 /dev/video1 /dev/video2 /dev/video3
 chmod 0660 /dev/video0 /dev/video1 /dev/video2 /dev/video3

@@ -1,0 +1,25 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+
+set -eu
+
+# Waydroid changes ownership and modes while constructing the LXC device tree.
+# Wait until that work is complete before applying Android's numeric IDs.
+state=
+for _attempt in $(seq 1 30); do
+    state=$(lxc-info -P /var/lib/waydroid/lxc -n waydroid -sH 2>/dev/null || true)
+    test "${state}" = RUNNING && break
+    sleep 1
+done
+test "${state}" = RUNNING
+
+# NXP's Codec2 service runs with primary GID 1006 (camera).
+chown 0:1006 /dev/video0 /dev/video1 /dev/video2 /dev/video3
+chmod 0660 /dev/video0 /dev/video1 /dev/video2 /dev/video3
+
+# These nodes are used by Android graphics and media processes with different
+# service IDs, matching NXP's uevent permissions.
+chown 1000:1003 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+chmod 0666 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+chown 1000:1000 /dev/dmabuf_imx
+chmod 0666 /dev/dmabuf_imx
