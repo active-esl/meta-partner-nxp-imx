@@ -1,0 +1,54 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+
+set -eu
+
+base_props=/var/lib/waydroid/waydroid_base.prop
+nodes=/var/lib/waydroid/lxc/waydroid/config_nodes
+
+replace_property() {
+    key=$1
+    value=$2
+    tmp=${base_props}.tmp.$$
+    awk -F= -v key="${key}" '$1 != key { print }' "${base_props}" > "${tmp}"
+    printf '%s=%s\n' "${key}" "${value}" >> "${tmp}"
+    chmod 0644 "${tmp}"
+    chown 0:0 "${tmp}"
+    mv "${tmp}" "${base_props}"
+}
+
+remove_property() {
+    key=$1
+    tmp=${base_props}.tmp.$$
+    awk -F= -v key="${key}" '$1 != key { print }' "${base_props}" > "${tmp}"
+    chmod 0644 "${tmp}"
+    chown 0:0 "${tmp}"
+    mv "${tmp}" "${base_props}"
+}
+
+append_node_once() {
+    entry=$1
+    grep -Fqx "${entry}" "${nodes}" || printf '%s\n' "${entry}" >> "${nodes}"
+}
+
+test -s "${base_props}"
+test -s "${nodes}"
+test -c /dev/dma_heap/linux,cma-uncached
+test -c /dev/dma_heap/system
+
+# The generic host probe cannot see Android's vendor libraries and otherwise
+# forces Mesa/GBM.  This product has the reviewed NXP Mali allocator and EGL.
+replace_property ro.hardware.egl mali
+replace_property ro.hardware.vulkan mali
+replace_property ro.hardware.gralloc default
+remove_property gralloc.gbm.device
+remove_property debug.stagefright.ccodec
+
+# NXP's Android allocator asks for these canonical heap names.  The FRDM host
+# exposes the same heaps as linux,cma-uncached and system.  Map only those two
+# nodes into the container and give Android system:graphics access to them.
+chown 1000:1003 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+chmod 0660 /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+append_node_once 'lxc.mount.entry = /dev/dma_heap/linux,cma-uncached dev/dma_heap/reserved-uncached none bind,create=file 0 0'
+append_node_once 'lxc.mount.entry = /dev/dma_heap/system dev/dma_heap/system-uncached none bind,create=file 0 0'
+

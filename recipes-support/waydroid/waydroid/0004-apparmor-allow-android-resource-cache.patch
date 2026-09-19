@@ -1,0 +1,26 @@
+From: Active ESL <engineering@active-esl.com>
+Date: Sat, 19 Sep 2026 00:00:00 +0100
+Subject: [PATCH] apparmor: allow Android to read generated resource overlays
+
+Android 16's zygote reads idmap files generated below /data/resource-cache.
+Without this rule the enforced profile denies those reads, zygote exits during
+preload, and the framework never reaches boot completion.
+
+---
+ data/configs/apparmor_profiles/android_app | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/data/configs/apparmor_profiles/android_app b/data/configs/apparmor_profiles/android_app
+--- a/data/configs/apparmor_profiles/android_app
++++ b/data/configs/apparmor_profiles/android_app
+@@ -31,6 +31,7 @@ profile android_app flags=(attach_disconnected, mediate_deleted) {
+   /data/app** r,
+   /data/system/unsolzygotesocket rw,
+   /data/dalvik-cache** r,
++  /data/resource-cache/** r,
+   /data/misc** r,
+   /data/lineageos_updates** r,
+   /apex** mr,
+-- 
+2.43.0
+

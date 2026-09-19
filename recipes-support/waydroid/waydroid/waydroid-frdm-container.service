@@ -6,6 +6,7 @@ ConditionPathExists=/var/lib/waydroid/waydroid.cfg
 
 [Service]
 Type=simple
+ExecStartPre=/usr/libexec/waydroid-frdm-prepare
 ExecStart=/usr/bin/waydroid container start
 Restart=on-failure
 RestartSec=5

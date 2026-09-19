@@ -27,6 +27,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://0001-lxc-limit-graphics-device-permissions.patch \
     file://0002-lxc-provide-writable-android-metadata.patch \
     file://0003-platform-use-Android-16-interface-descriptor.patch \
+    file://0004-apparmor-allow-android-resource-cache.patch \
     file://gbinder.conf \
     file://waydroid-luneos.env \
     file://waydroid-luneos-appinfo.json \
@@ -46,6 +47,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://waydroid-frdm-dbus.service \
     file://waydroid-frdm-session.service \
     file://waydroid-frdm-ui.service \
+    file://waydroid-frdm-prepare \
     file://waydroid-product-wait \
 "
 S = "${WORKDIR}/git"
@@ -151,6 +153,41 @@ do_install:append:imx8mm-lpddr4-evk() {
     install -m 755 ${WORKDIR}/waydroid-net.sh ${D}/usr/lib/waydroid/data/scripts/waydroid-net.sh
 }
 
+configure_waydroid_lxc_proc() {
+    config_base="$1"
+    # Android first-stage init cannot remount procfs from inside this LXC.
+    # Mount it with Android's process-hiding policy in LXC instead, while
+    # retaining the proc/sys protections of LXC's automatic proc:mixed mode.
+    # AID_READPROC is 3009 in the pinned Android 16 filesystem config.
+    if grep -Eq '^lxc\.mount\.entry[[:space:]]*=[[:space:]]*[^[:space:]]+[[:space:]]+proc[[:space:]]' "${config_base}"; then
+        bbfatal "unexpected existing proc mount entry in ${config_base}"
+    elif [ "$(grep -cx 'lxc.mount.auto = cgroup:ro sys:ro proc' "${config_base}")" -eq 1 ]; then
+        sed -i 's|^lxc.mount.auto = cgroup:ro sys:ro proc$|lxc.mount.auto = cgroup:ro sys:ro|' \
+            "${config_base}"
+        printf '%s\n' \
+            'lxc.mount.entry = proc proc proc rw,nodev,nosuid,noexec,relatime,hidepid=2,gid=3009 0 0' \
+            'lxc.mount.entry = proc/sys proc/sys proc ro,bind,relative 0 0' \
+            'lxc.mount.entry = proc/sys/net proc/sys/net proc rw,bind,relative 0 0' \
+            'lxc.mount.entry = proc/sysrq-trigger proc/sysrq-trigger proc ro,bind,relative 0 0' \
+            >> "${config_base}"
+    else
+        bbfatal "unexpected Waydroid proc mount policy in ${config_base}"
+    fi
+}
+
+configure_waydroid_lxc_apparmor() {
+    config_base="$1"
+    # The default-cgns profile denies Android's mount setup. Use Waydroid's
+    # installed, enforced profile; never fall back to an unconfined container.
+    if grep -qx 'lxc.apparmor.profile = lxc-waydroid' "${config_base}"; then
+        return 0
+    elif grep -Eq '^lxc\.apparmor\.profile[[:space:]]*=' "${config_base}"; then
+        bbfatal "unexpected Waydroid AppArmor profile in ${config_base}"
+    else
+        printf '%s\n' 'lxc.apparmor.profile = lxc-waydroid' >> "${config_base}"
+    fi
+}
+
 do_install:append:imx8mm-jaguar-screen() {
     install -Dm644 -t "${D}${sysconfdir}" "${WORKDIR}/gbinder.conf"
     install -m 755 ${WORKDIR}/waydroid-net.sh ${D}/usr/lib/waydroid/data/scripts/waydroid-net.sh
@@ -167,6 +204,7 @@ do_install:append:imx8mm-jaguar-screen() {
     elif ! grep -qx 'lxc.hook.post-stop = /bin/true' "${config_base}"; then
         bbfatal "unexpected Waydroid post-stop hook in ${config_base}"
     fi
+    configure_waydroid_lxc_proc "${config_base}"
 
     # The display controller is card2 on this board; card0 is the boot
     # framebuffer and card1 is the render-only Etnaviv node.  Pinning card2
@@ -206,8 +244,13 @@ do_install:append:imx95-frdm-evk() {
         bbfatal "unexpected Waydroid post-stop hook in ${config_base}"
     fi
 
+    configure_waydroid_lxc_proc "${config_base}"
+    configure_waydroid_lxc_apparmor "${config_base}"
+
     install -Dm0755 ${WORKDIR}/waydroid-product-wait \
         ${D}${libexecdir}/waydroid-product-wait
+    install -Dm0755 ${WORKDIR}/waydroid-frdm-prepare \
+        ${D}${libexecdir}/waydroid-frdm-prepare
     install -Dm0644 ${WORKDIR}/waydroid-image-release.conf \
         ${D}${datadir}/waydroid-extra/waydroid-image-release.conf
     install -Dm0644 ${WORKDIR}/waydroid-frdm-container.service \
