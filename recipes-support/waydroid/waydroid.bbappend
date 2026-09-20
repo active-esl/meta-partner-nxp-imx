@@ -53,6 +53,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://waydroid-frdm-prepare \
     file://waydroid-frdm-device-permissions \
     file://waydroid-frdm-network-ready \
+    file://20-frdm-gbm.conf \
     file://waydroid-product-wait \
 "
 S = "${WORKDIR}/git"
@@ -272,6 +273,8 @@ do_install:append:imx95-frdm-evk() {
         ${D}${datadir}/waydroid-extra/waydroid-image-release.conf
     install -Dm0644 ${WORKDIR}/waydroid-frdm-container.conf \
         ${D}${systemd_system_unitdir}/waydroid-container.service.d/frdm.conf
+    install -Dm0644 ${WORKDIR}/20-frdm-gbm.conf \
+        ${D}${systemd_system_unitdir}/weston.service.d/20-frdm-gbm.conf
     install -Dm0644 ${WORKDIR}/waydroid-frdm-dbus.service \
         ${D}${systemd_system_unitdir}/waydroid-frdm-dbus.service
     install -Dm0644 ${WORKDIR}/waydroid-frdm-session.service \

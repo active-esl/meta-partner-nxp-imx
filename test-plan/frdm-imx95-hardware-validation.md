@@ -254,10 +254,17 @@ The FRDM preparation service must bake these properties into
 ```properties
 service.sf.prime_shader_cache=0
 debug.hwui.use_buffer_age=false
+debug.hwui.render_dirty_regions=false
+debug.hwui.enable_partial_updates=false
 debug.hwui.use_partial_updates=false
 ```
 
-The two HWUI properties bypass buffer-age and partial-damage rendering, so
+All four HWUI properties are required. An FRDM runtime test on 2026-09-20
+showed that setting only `use_buffer_age` and `use_partial_updates` still left
+the final Android framebuffer black after startup. Disabling dirty-region
+rendering and the second partial-update switch restored visible Android output
+through the accelerated Arm gralloc and Mali path. These properties bypass
+buffer-age and partial-damage rendering, so
 Android redraws complete buffers. Mali GLES acceleration remains enabled; the
 tradeoff is potentially higher memory bandwidth and display power during UI
 updates. Disabling the SurfaceFlinger shader-cache warm-up avoids a second
