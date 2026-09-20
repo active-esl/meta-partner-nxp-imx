@@ -28,6 +28,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://0002-lxc-provide-writable-android-metadata.patch \
     file://0003-platform-use-Android-16-interface-descriptor.patch \
     file://0004-apparmor-allow-android-resource-cache.patch \
+    file://0005-apparmor-allow-waydroid-property-update.patch \
     file://gbinder.conf \
     file://waydroid-luneos.env \
     file://waydroid-luneos-appinfo.json \
@@ -48,6 +49,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://waydroid-frdm-dbus.service \
     file://waydroid-frdm-session.service \
     file://waydroid-frdm-ui.service \
+    file://waydroid-frdm-show-ui \
     file://waydroid-frdm-prepare \
     file://waydroid-frdm-device-permissions \
     file://waydroid-frdm-network-ready \
@@ -264,6 +266,8 @@ do_install:append:imx95-frdm-evk() {
         ${D}${libexecdir}/waydroid-frdm-device-permissions
     install -Dm0755 ${WORKDIR}/waydroid-frdm-network-ready \
         ${D}${libexecdir}/waydroid-frdm-network-ready
+    install -Dm0755 ${WORKDIR}/waydroid-frdm-show-ui \
+        ${D}${libexecdir}/waydroid-frdm-show-ui
     install -Dm0644 ${WORKDIR}/waydroid-image-release.conf \
         ${D}${datadir}/waydroid-extra/waydroid-image-release.conf
     install -Dm0644 ${WORKDIR}/waydroid-frdm-container.conf \

@@ -6,15 +6,18 @@ PartOf=waydroid-frdm-session.service
 
 [Service]
 Type=oneshot
-User=weston
-Group=weston
+User=fio
+Group=fio
 SupplementaryGroups=video render wayland
-Environment=HOME=/var/rootdirs/home/weston
+Environment=HOME=/home/fio
 Environment=XDG_RUNTIME_DIR=/run
-Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/waydroid-frdm/bus
 Environment=WAYLAND_DISPLAY=wayland-0
 ExecStartPre=/usr/libexec/waydroid-product-wait session
-ExecStart=/usr/bin/waydroid show-full-ui
+# The Waydroid session must remain UID 63 so Android's host HWC can connect to
+# Weston's socket. Android's privileged host Binder identity is UID 1000, so
+# present the UI through the direct Binder helper under the fio account.
+ExecStartPre=+/usr/bin/waydroid container unfreeze
+ExecStart=/usr/libexec/waydroid-frdm-show-ui
 RemainAfterExit=yes
 TimeoutStartSec=180
 

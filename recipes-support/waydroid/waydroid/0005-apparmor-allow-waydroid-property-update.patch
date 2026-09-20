@@ -1,0 +1,25 @@
+From: Active ESL <engineering@active-esl.com>
+Date: Sun, 20 Sep 2026 12:00:00 +0100
+Subject: [PATCH] apparmor: allow generated Waydroid property updates
+
+The Waydroid container manager writes the generated property file after the
+LXC profile is attached. Android 16 otherwise receives a read-only property
+file, preventing the platform service and graphical session from starting.
+
+---
+ data/configs/apparmor_profiles/lxc-waydroid | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/data/configs/apparmor_profiles/lxc-waydroid b/data/configs/apparmor_profiles/lxc-waydroid
+--- a/data/configs/apparmor_profiles/lxc-waydroid
++++ b/data/configs/apparmor_profiles/lxc-waydroid
+@@ -25,6 +25,7 @@ profile lxc-waydroid flags=(attach_disconnected, mediate_deleted) {
+   /tmp** rw,
+   /var** rw,
+   /run** rw,
++  /vendor/waydroid.prop rw,
+   /mnt** rw,
+   /apex** rwk,
+   /sbin** rw,
+--
+2.43.0
