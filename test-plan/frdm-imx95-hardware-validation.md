@@ -230,6 +230,59 @@ The script is a discovery/regression sweep, not the whole acceptance test. Its
 SKIP rows identify peripherals that need fitting or deliberate destructive
 testing. Close every required SKIP with the manual proof in the matrix above.
 
+### Android EGL partial-update compatibility
+
+On the FRDM i.MX95 LineageOS 23.2 / Android 16 product, NXP's proprietary
+Mali-G310 userspace can reject Android HWUI's partial-update call with
+`eglSetDamageRegionKHR: EGL_BAD_ACCESS`. The resulting fatal `RenderThread`
+failure can repeatedly crash SetupWizard and SystemUI, leaving HDMI black even
+though Waydroid, SurfaceFlinger, Weston and the accelerated Mali renderer are
+otherwise running.
+
+This is a known class of Mali EGL partial-update failure, but no public NXP
+i.MX95 erratum has been found for this exact symptom. The
+[`EGL_KHR_partial_update` specification][egl-partial-update] requires the
+current buffer age to be queried after every frame boundary before setting the
+damage region; failure of that sequencing is reported as `EGL_BAD_ACCESS`.
+Equivalent Mali failures have been reported on [other Android Mali
+devices][mali-damage-report]. Treat this as a userspace/integration
+compatibility issue unless NXP identifies an i.MX95 hardware defect.
+
+The FRDM preparation service must bake these properties into
+`/var/lib/waydroid/waydroid_base.prop` before Android starts:
+
+```properties
+service.sf.prime_shader_cache=0
+debug.hwui.use_buffer_age=false
+debug.hwui.use_partial_updates=false
+```
+
+The two HWUI properties bypass buffer-age and partial-damage rendering, so
+Android redraws complete buffers. Mali GLES acceleration remains enabled; the
+tradeoff is potentially higher memory bandwidth and display power during UI
+updates. Disabling the SurfaceFlinger shader-cache warm-up avoids a second
+unsupported accelerated path during startup. Do not use these properties as
+proof of GPU fallback: separately verify the Mali-G310 GLES renderer, Arm
+gralloc/HWC and the absence of persistent DPU DMA-BUF errors.
+
+A separate black-screen failure occurs when NXP gralloc cannot open its
+`reserved`, `reserved-uncached` or `system-uncached` DMA-heap names. The FRDM
+container maps those names to the host's cached CMA, uncached CMA and system
+heaps. Android ueventd may reset the aliases to `0660 root:root`; the
+post-start permission helper must restore `0666` because the host composer
+runs as Wayland UID 63. In this failure, SurfaceFlinger reports an empty HWC
+layer list and gralloc misleadingly reports `Out of memory` even when
+`CmaFree` is healthy.
+
+If the fault is revisited, capture the exact Mali userspace version, Android
+HWUI error and EGL extension list, then test a newer NXP Mali package only with
+its matching BSP/kernel ABI. Removal of the workaround requires cold-boot UI
+proof without `EGL_BAD_ACCESS`, followed by the complete graphics acceptance
+test.
+
+[egl-partial-update]: https://registry.khronos.org/EGL/extensions/KHR/EGL_KHR_partial_update.txt
+[mali-damage-report]: https://github.com/dreamsoftin/facebook_audience_network/issues/30
+
 ## Failure triage order
 
 1. Identify the first failing boot stage from the serial log; do not debug a

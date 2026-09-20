@@ -47,6 +47,12 @@ done
 replace_property ro.hardware.egl mali
 replace_property ro.hardware.vulkan mali
 replace_property ro.hardware.gralloc arm
+# SurfaceFlinger and HWUI otherwise exercise Mali extension paths which this
+# driver advertises but rejects at runtime.  Disable the shader-cache warm-up
+# and partial-damage path before Android starts.
+replace_property service.sf.prime_shader_cache 0
+replace_property debug.hwui.use_buffer_age false
+replace_property debug.hwui.use_partial_updates false
 remove_property gralloc.gbm.device
 remove_property debug.stagefright.ccodec
 
@@ -56,6 +62,7 @@ remove_property debug.stagefright.ccodec
 # heaps available to application-side Codec2 allocators.
 chown 1000:1003 /dev/dma_heap/linux,cma /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
 chmod 0666 /dev/dma_heap/linux,cma /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
+append_node_once 'lxc.mount.entry = /dev/dma_heap/linux,cma dev/dma_heap/reserved none bind,create=file 0 0'
 append_node_once 'lxc.mount.entry = /dev/dma_heap/linux,cma-uncached dev/dma_heap/reserved-uncached none bind,create=file 0 0'
 append_node_once 'lxc.mount.entry = /dev/dma_heap/system dev/dma_heap/system-uncached none bind,create=file 0 0'
 

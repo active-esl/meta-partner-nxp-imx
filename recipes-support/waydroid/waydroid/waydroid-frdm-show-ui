@@ -1,0 +1,79 @@
+#!/usr/bin/python3
+"""Present the FRDM Waydroid UI with Android's privileged host UID."""
+
+import sys
+import time
+
+sys.path.insert(0, "/usr/lib/waydroid")
+
+import gbinder
+
+
+BINDER = "/dev/binder"
+SERVICE_MANAGER_PROTOCOL = "aidl6"
+BINDER_PROTOCOL = "aidl3"
+PLATFORM_SERVICE = "waydroidplatform"
+PLATFORM_INTERFACE = "id.waydro.waydroid.IPlatform"
+STATUS_BAR_SERVICE = "statusbar"
+STATUS_BAR_INTERFACE = "com.android.internal.statusbar.IStatusBarService"
+
+
+def wait_for_service(manager, name, attempts=180):
+    for _ in range(attempts):
+        remote, status = manager.get_service_sync(name)
+        if remote is not None:
+            return remote
+        time.sleep(1)
+    raise RuntimeError(f"timed out waiting for Binder service {name}")
+
+
+def transact_void(client, code, append=None):
+    request = client.new_request()
+    if append is not None:
+        append(request)
+    reply, status = client.transact_sync_reply(code, request)
+    if status or reply is None:
+        raise RuntimeError(f"Binder transaction {code} failed with status {status}")
+    read_ok, exception = reply.init_reader().read_int32()
+    if not read_ok or exception != 0:
+        raise RuntimeError(f"Binder transaction {code} returned exception {exception}")
+
+
+def main():
+    manager = gbinder.ServiceManager(
+        BINDER, SERVICE_MANAGER_PROTOCOL, BINDER_PROTOCOL
+    )
+    if not manager.is_present():
+        raise RuntimeError("Binder service manager is unavailable")
+
+    platform = gbinder.Client(
+        wait_for_service(manager, PLATFORM_SERVICE), PLATFORM_INTERFACE
+    )
+    transact_void(
+        platform,
+        2,
+        lambda request: (
+            request.append_string16("waydroid.active_apps"),
+            request.append_string16("Waydroid"),
+        ),
+    )
+    transact_void(
+        platform,
+        9,
+        lambda request: (
+            request.append_int32(2),
+            request.append_string16("policy_control"),
+            request.append_string16("null*"),
+        ),
+    )
+
+    status_bar = gbinder.Client(
+        wait_for_service(manager, STATUS_BAR_SERVICE), STATUS_BAR_INTERFACE
+    )
+    transact_void(status_bar, 1)
+    time.sleep(0.5)
+    transact_void(status_bar, 2)
+
+
+if __name__ == "__main__":
+    main()

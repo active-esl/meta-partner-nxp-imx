@@ -23,3 +23,11 @@ chown 1000:1003 /dev/dma_heap/linux,cma /dev/dma_heap/linux,cma-uncached /dev/dm
 chmod 0666 /dev/dma_heap/linux,cma /dev/dma_heap/linux,cma-uncached /dev/dma_heap/system
 chown 1000:1000 /dev/dmabuf_imx
 chmod 0666 /dev/dmabuf_imx
+
+# Android ueventd recreates the NXP heap aliases as 0660 root:root inside the
+# container.  The host composer runs as the Wayland UID (63), so those modes
+# make Mali gralloc report a misleading out-of-memory failure and leave the
+# primary display black.  Apply the final modes after Android init is running.
+lxc-attach -P /var/lib/waydroid/lxc -n waydroid -- \
+    /system/bin/chmod 0666 /dev/dma_heap/reserved \
+        /dev/dma_heap/reserved-uncached /dev/dma_heap/system-uncached
