@@ -52,6 +52,8 @@ replace_property ro.hardware.gralloc arm
 # and partial-damage path before Android starts.
 replace_property service.sf.prime_shader_cache 0
 replace_property debug.hwui.use_buffer_age false
+replace_property debug.hwui.render_dirty_regions false
+replace_property debug.hwui.enable_partial_updates false
 replace_property debug.hwui.use_partial_updates false
 remove_property gralloc.gbm.device
 remove_property debug.stagefright.ccodec
