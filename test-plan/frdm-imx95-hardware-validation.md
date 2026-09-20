@@ -259,18 +259,19 @@ debug.hwui.enable_partial_updates=false
 debug.hwui.use_partial_updates=false
 ```
 
-All four HWUI properties are required. An FRDM runtime test on 2026-09-20
-showed that setting only `use_buffer_age` and `use_partial_updates` still left
-the final Android framebuffer black after startup. Disabling dirty-region
-rendering and the second partial-update switch restored visible Android output
-through the accelerated Arm gralloc and Mali path. These properties bypass
-buffer-age and partial-damage rendering, so
-Android redraws complete buffers. Mali GLES acceleration remains enabled; the
-tradeoff is potentially higher memory bandwidth and display power during UI
+All four HWUI properties are required to keep SetupWizard and SystemUI out of
+the failing partial-update path. An FRDM runtime test on 2026-09-20 showed that
+setting only `use_buffer_age` and `use_partial_updates` still triggered startup
+failure. Disabling dirty-region rendering and the second partial-update switch
+allowed Android to produce complete, opaque framebuffer-target DMA-BUFs, but
+did not by itself make those buffers visible through Weston. Treat final host
+DMA-BUF import and presentation as a separate acceptance gate. These
+properties make Android redraw complete buffers; Mali GLES acceleration remains
+enabled, with potentially higher memory bandwidth and display power during UI
 updates. Disabling the SurfaceFlinger shader-cache warm-up avoids a second
-unsupported accelerated path during startup. Do not use these properties as
-proof of GPU fallback: separately verify the Mali-G310 GLES renderer, Arm
-gralloc/HWC and the absence of persistent DPU DMA-BUF errors.
+unsupported accelerated path during startup. Separately verify visible HDMI,
+the Mali-G310 GLES renderer, Arm gralloc/HWC and the absence of persistent DPU
+DMA-BUF errors.
 
 A separate black-screen failure occurs when NXP gralloc cannot open its
 `reserved`, `reserved-uncached` or `system-uncached` DMA-heap names. The FRDM
