@@ -13,7 +13,7 @@ SPV = "1.6.3"
 PV = "${SPV}+git${SRCPV}"
 
 RDEPENDS:${PN} += "lxc python3-gbinder python3-pygobject libgbinder python3-pyclip python3-dbus python3-compression python3-json gobject-introspection"
-RDEPENDS:${PN}:append:imx95-frdm-evk = " apparmor ca-certificates curl"
+RDEPENDS:${PN}:append:imx95-frdm-evk = " apparmor ca-certificates curl python3-core"
 RDEPENDS:${PN}:append:imx8mm-jaguar-screen = " apparmor ca-certificates curl"
 
 # these modules are directly included in android-flavored kernels
