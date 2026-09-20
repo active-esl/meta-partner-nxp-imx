@@ -154,11 +154,12 @@ conditional "Mali-G310 kernel device" 1 "test -e /dev/mali0"
 conditional "G2D validation samples survive OSTree" 1 "test -x /usr/libexec/g2d-samples/g2d_basic_test"
 conditional "Mali GBM runtime loader" 1 "test -e /usr/lib/libgbm.so"
 if [ "$require_hdmi" -eq 1 ]; then
-    if grep -Eq '^[[:space:]]*use-g2d=(true|1)[[:space:]]*$' /etc/xdg/weston/weston.ini 2>/dev/null &&
-       ! $SUDO journalctl -u weston -b 0 2>/dev/null | grep -qi 'failed to initialize g2d renderer'; then
-        row "Accelerated Weston renderer" "NXP G2D selected; no initialization failure" PASS; P
+    weston_pid=$(pgrep -xo weston || true)
+    if [ -n "$weston_pid" ] &&
+       $SUDO grep -q '/gl-renderer\.so' "/proc/$weston_pid/maps" 2>/dev/null; then
+        row "Accelerated Weston renderer" "Mali GL renderer selected" PASS; P
     else
-        row "Accelerated Weston renderer" "G2D not selected or initialization failed" FAIL; F
+        row "Accelerated Weston renderer" "Mali GL renderer not loaded" FAIL; F
     fi
 fi
 waydroid_cmd="command -v waydroid >/dev/null 2>&1 || systemctl list-unit-files 2>/dev/null | grep -q '^waydroid-container'"
