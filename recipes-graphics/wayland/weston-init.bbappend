@@ -2,7 +2,8 @@
 # this is already uncommented for lmp-wayland weston.ini so remove here
 INI_UNCOMMENT_ASSIGNMENTS:remove:imx-nxp-bsp = "\\[shell\\]"
 
-# NXP's mx95 machine overrides select the DPU G2D renderer.  Keep that vendor
-# default: the matching CONFIG_IMX_DPU_BLIT dependency is explicit in the
-# machine kernel fragment.  Pixman remains available as a manual diagnostic
-# fallback but is not the shipped renderer.
+# NXP's DPU G2D renderer passes Waydroid's secondary gralloc handle FD to the
+# DPU95 cache-sync ioctl, which rejects it and leaves the Android surface black.
+# The Mali GL renderer imports the primary DMA-BUF correctly and keeps host
+# composition accelerated.
+PACKAGECONFIG:remove:imx95-frdm-evk = "use-g2d"

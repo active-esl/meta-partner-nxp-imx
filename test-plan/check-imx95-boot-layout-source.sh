@@ -142,10 +142,12 @@ grep -Fqx 'CONFIG_HW_RANDOM_OPTEE=y' "$kernel_cfg"
 
 # Product display and Wi-Fi policy are deliberately machine-scoped.  FRDM is
 # a station-only client, routine scan messages stay off the console, Weston
-# uses NXP's DPU G2D path, and the Foundries splash is absent.
+# uses the Mali GL path proven with Waydroid DMA-BUFs, and the Foundries splash
+# is absent.
 grep -Fq 'module_conf_moal:imx95-frdm-evk = "options moal mod_para=nxp/wifi_mod_para.conf drv_mode=1 drvdbg=0x6"' "$wifi_append"
-if grep -Eq 'PACKAGECONFIG:(remove|append):imx95-frdm-evk.*(use-g2d|use-pixman)' "$weston_append"; then
-    echo "FRDM overrides NXP's accelerated Weston renderer in $weston_append" >&2
+grep -Eq 'PACKAGECONFIG:remove:imx95-frdm-evk[[:space:]]*=.*["[:space:]]use-g2d(["[:space:]]|$)' "$weston_append"
+if grep -Eq 'PACKAGECONFIG:append:imx95-frdm-evk.*use-pixman' "$weston_append"; then
+    echo "FRDM falls back to the software Weston renderer in $weston_append" >&2
     exit 1
 fi
 grep -Fq 'CORE_IMAGE_BASE_INSTALL:remove:imx95-frdm-evk = "psplash"' "$partner_image"
