@@ -152,6 +152,7 @@ conditional "Weston compositor" "$require_hdmi" "systemctl is-active --quiet wes
 conditional "DRM render node" "$require_hdmi" "test -e /dev/dri/renderD128"
 conditional "Mali-G310 kernel device" 1 "test -e /dev/mali0"
 conditional "G2D validation samples survive OSTree" 1 "test -x /usr/libexec/g2d-samples/g2d_basic_test"
+conditional "Mali GBM runtime loader" 1 "test -e /usr/lib/libgbm.so"
 if [ "$require_hdmi" -eq 1 ]; then
     if grep -Eq '^[[:space:]]*use-g2d=(true|1)[[:space:]]*$' /etc/xdg/weston/weston.ini 2>/dev/null &&
        ! $SUDO journalctl -u weston -b 0 2>/dev/null | grep -qi 'failed to initialize g2d renderer'; then

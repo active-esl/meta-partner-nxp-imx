@@ -16,6 +16,7 @@ apparmor_patch="$files/0004-apparmor-allow-android-resource-cache.patch"
 kernel_recipe="$repo/recipes-kernel/linux/linux-lmp-fslc-imx_6.12.bb"
 kernel_config="$repo/recipes-kernel/linux/linux-lmp-fslc-imx/imx95-15x15-lpddr4x-frdm.cfg"
 dmabuf_patch="$repo/recipes-kernel/linux/linux-lmp-fslc-imx/0007-dma-buf-add-NXP-i.MX-helper.patch"
+mali_recipe="$repo/recipes-graphics/mali/mali-imx_r50.2.bbappend"
 
 sh -n "$prepare"
 sh -n "$permissions"
@@ -43,6 +44,8 @@ grep -Fq 'file://0004-apparmor-allow-android-resource-cache.patch' "$recipe"
 grep -Fq 'replace_property ro.hardware.egl mali' "$prepare"
 grep -Fq 'replace_property ro.hardware.vulkan mali' "$prepare"
 grep -Fq 'replace_property ro.hardware.gralloc arm' "$prepare"
+grep -Fq 'FILES:${PN}-libgbm:append:imx95-frdm-evk = " ${libdir}/libgbm${SOLIBSDEV}"' "$mali_recipe"
+grep -Fq 'FILES:${PN}-libgbm-dev:remove:imx95-frdm-evk = "${libdir}/libgbm${SOLIBSDEV}"' "$mali_recipe"
 if grep -Fq 'replace_property ro.hardware.gralloc default' "$prepare"; then
     echo 'legacy CPU-readback gralloc mode is still selected' >&2
     exit 1
