@@ -288,6 +288,42 @@ its matching BSP/kernel ABI. Removal of the workaround requires cold-boot UI
 proof without `EGL_BAD_ACCESS`, followed by the complete graphics acceptance
 test.
 
+### Weston EGL damage and plane compatibility
+
+The Android HWUI workaround above does not cover Weston's separate EGL damage
+path. On the r54 Mali-G310 host stack, Android can render a correct internal
+screen while HDMI retains an old frame or becomes black. The fault was
+reproduced with active Weston and Waydroid services, valid nonzero Android and
+Weston buffers, a connected HDMI sink, and no persistent
+`imx95-dpu failed to get dmabuf` error.
+
+Weston's built-in GL fan debug mode made the current Android frame visible
+because that path repaints the otherwise undamaged region, avoids
+`eglSetDamageRegionKHR`, and uses a full `eglSwapBuffers`. The diagnostic fan
+lines are incidental. This evidence identifies a host EGL partial-damage
+compatibility fault; it does not identify an Android rendering failure or an
+i.MX95 hardware erratum.
+
+For FRDM, the host image therefore enables two opt-in Weston controls:
+
+```ini
+Environment=WESTON_DRM_DISABLE_PLANES=1
+Environment=WESTON_GL_FORCE_FULL_REPAINT=1
+```
+
+The first keeps Waydroid in Weston's GL-composited primary plane instead of a
+direct DPU overlay. The second reproduces the complete repaint behavior without
+the fan diagnostic overlay and bypasses EGL partial-update and damaged-swap
+entry points. Mali GLES acceleration remains enabled. Expect higher display
+bandwidth because every frame redraws the complete output.
+
+HDMI capture is part of the test fixture. Start OBS before Weston modesets so
+the USB capture adapter asserts HPD, and keep the capture source open throughout
+lifecycle testing. For release evidence, require three serialized Waydroid
+stop/start cycles without restarting Weston, followed by a cold reboot. Each
+cycle must show a current nonblack OBS frame and retain Mali-G310 GLES, Arm
+HWC/gralloc, Wave6 decoding, and zero persistent DPU DMA-BUF import failures.
+
 [egl-partial-update]: https://registry.khronos.org/EGL/extensions/KHR/EGL_KHR_partial_update.txt
 [mali-damage-report]: https://github.com/dreamsoftin/facebook_audience_network/issues/30
 
