@@ -1,0 +1,91 @@
+From: Active ESL <engineering@active-esl.com>
+Date: Mon, 21 Sep 2026 20:00:00 +0100
+Subject: [PATCH] renderer-gl: allow full repaint and primary-plane fallback
+
+The i.MX95 DPU/Mali stack can retain stale content when Weston uses EGL
+partial damage or direct overlay planes across Waydroid buffer replacement.
+Provide opt-in environment controls so affected products can repaint every
+region in one GL frame and keep composition on the primary plane.
+
+Upstream-Status: Inappropriate [i.MX95 vendor stack workaround]
+---
+diff --git a/libweston/backend-drm/drm.c b/libweston/backend-drm/drm.c
+index 1765fbe5..d1dd22da 100644
+--- a/libweston/backend-drm/drm.c
++++ b/libweston/backend-drm/drm.c
+@@ -2695,6 +2695,11 @@ drm_output_create(struct weston_backend *backend, const char *name)
+ #endif
+ 
+ 	weston_output_init(&output->base, b->compositor, name);
++	if (getenv("WESTON_DRM_DISABLE_PLANES")) {
++		weston_output_disable_planes_incr(&output->base);
++		weston_log("Output %s: DRM planes disabled by environment\n",
++			   output->base.name);
++	}
+ 
+ 	output->base.enable = drm_output_enable;
+ 	output->base.destroy = drm_output_destroy;
+diff --git a/libweston/renderer-gl/gl-renderer-internal.h b/libweston/renderer-gl/gl-renderer-internal.h
+index 888df847..7fcc98b1 100644
+--- a/libweston/renderer-gl/gl-renderer-internal.h
++++ b/libweston/renderer-gl/gl-renderer-internal.h
+@@ -124,6 +124,7 @@ struct gl_renderer {
+ 
+ 	bool fragment_shader_debug;
+ 	bool fan_debug;
++	bool force_full_repaint;
+ 	struct weston_binding *fragment_binding;
+ 	struct weston_binding *fan_binding;
+ 
+diff --git a/libweston/renderer-gl/gl-renderer.c b/libweston/renderer-gl/gl-renderer.c
+index 2ad8fa7c..bca8133a 100644
+--- a/libweston/renderer-gl/gl-renderer.c
++++ b/libweston/renderer-gl/gl-renderer.c
+@@ -1865,14 +1865,15 @@ gl_renderer_repaint_output(struct weston_output *output,
+ 	 * fans left over from previous draws on this buffer.
+ 	 * This precludes the use of EGL_EXT_swap_buffers_with_damage and
+ 	 * EGL_KHR_partial_update, since we damage the whole area. */
+-	if (gr->fan_debug) {
++	if (gr->fan_debug || gr->force_full_repaint) {
+ 		pixman_region32_t undamaged;
++		bool fan_debug = gr->fan_debug;
+ 		pixman_region32_init(&undamaged);
+ 		pixman_region32_subtract(&undamaged, &output->region,
+ 					 output_damage);
+ 		gr->fan_debug = false;
+ 		repaint_views(output, &undamaged);
+-		gr->fan_debug = true;
++		gr->fan_debug = fan_debug;
+ 		pixman_region32_fini(&undamaged);
+ 	}
+ 
+@@ -1892,7 +1893,8 @@ gl_renderer_repaint_output(struct weston_output *output,
+ 	pixman_region32_union(&total_damage, &previous_damage, output_damage);
+ 	border_status |= go->border_status;
+ 
+-	if (gr->has_egl_partial_update && !gr->fan_debug) {
++	if (gr->has_egl_partial_update && !gr->fan_debug &&
++	    !gr->force_full_repaint) {
+ 		int n_egl_rects;
+ 		EGLint *egl_rects;
+ 
+@@ -1938,7 +1940,8 @@ gl_renderer_repaint_output(struct weston_output *output,
+ 		gr->destroy_sync(gr->egl_display, go->render_sync);
+ 	go->render_sync = create_render_sync(gr);
+ 
+-	if (gr->swap_buffers_with_damage && !gr->fan_debug) {
++	if (gr->swap_buffers_with_damage && !gr->fan_debug &&
++	    !gr->force_full_repaint) {
+ 		int n_egl_rects;
+ 		EGLint *egl_rects;
+ 
+@@ -3892,6 +3895,9 @@ gl_renderer_display_create(struct weston_compositor *ec,
+ 	gr->compositor = ec;
+ 	wl_list_init(&gr->shader_list);
+ 	gr->platform = options->egl_platform;
++	gr->force_full_repaint = getenv("WESTON_GL_FORCE_FULL_REPAINT") != NULL;
++	if (gr->force_full_repaint)
++		weston_log("GL renderer: forcing full output repaint\n");
+ 
+ 	gr->renderer_scope = weston_compositor_add_log_scope(ec, "gl-renderer",
+ 		"GL-renderer verbose messages\n", NULL, NULL, gr);
