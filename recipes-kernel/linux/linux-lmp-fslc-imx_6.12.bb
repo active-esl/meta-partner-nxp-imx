@@ -21,6 +21,7 @@ SRC_URI += " \
     file://0005-ALSA-compress-import-DMA_BUF-namespace.patch \
     file://0006-arm64-dts-freescale-imx95-frdm-add-board-EEPROM.patch \
     file://0007-dma-buf-add-NXP-i.MX-helper.patch \
+    file://0008-drm-bridge-it6263-reinitialize-on-modeset.patch \
 "
 
 # The Foundries 6.6 kernel metadata is retained initially for LmP policy and

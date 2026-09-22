@@ -1,0 +1,96 @@
+From 383f7dec064219614980740f887b86681a7f4c0a Mon Sep 17 00:00:00 2001
+From: Active ESL CI <ci@active-esl.com>
+Date: Tue, 22 Sep 2026 17:32:08 +0100
+Subject: [PATCH] drm: recover FRDM IT6263 across display enables
+
+The NXP 6.12 IT6263 driver initializes the internal LVDS I2C address only at probe time. The bridge can lose that state before a later modeset, leaving HPD asserted but TXVIDSTABLE clear and producing a black HDMI frame.
+
+Reset and restore the bridge control path before each mode set, following upstream commit 6d0cc72b3ad5. Enable NXP's existing De-SSC path for the FRDM receiver so spread-spectrum LVDS clocks remain lockable.
+
+Upstream-Status: Backport [6d0cc72b3ad5a631d7ecb2c14de82ca0c2a1ceda]
+---
+ .../boot/dts/freescale/imx95-15x15-frdm.dts   |  2 +
+ drivers/gpu/drm/bridge/it6263.c               | 47 +++++++++++++++++++
+ 2 files changed, 49 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/freescale/imx95-15x15-frdm.dts b/arch/arm64/boot/dts/freescale/imx95-15x15-frdm.dts
+index c45f28e..925bc00 100644
+--- a/arch/arm64/boot/dts/freescale/imx95-15x15-frdm.dts
++++ b/arch/arm64/boot/dts/freescale/imx95-15x15-frdm.dts
+@@ -471,6 +471,8 @@
+ 		compatible = "ite,it6263";
+ 		reg = <0x4c>;
+ 		reset-gpios = <&pcal6524 23 GPIO_ACTIVE_LOW>;
++		/* Keep the receiver tolerant of spread-spectrum LVDS clocks. */
++		de-ssc-enable;
+ 
+ 		ports {
+ 			#address-cells = <1>;
+diff --git a/drivers/gpu/drm/bridge/it6263.c b/drivers/gpu/drm/bridge/it6263.c
+index 02d3e85..ff8e3c7 100644
+--- a/drivers/gpu/drm/bridge/it6263.c
++++ b/drivers/gpu/drm/bridge/it6263.c
+@@ -770,6 +770,45 @@ static void it6263_bridge_enable(struct drm_bridge *bridge)
+ 						ENABLE_PKT | REPEAT_PKT);
+ }
+ 
++static int it6263_reinitialize(struct it6263 *it6263)
++{
++	struct regmap *regmap = it6263->hdmi_regmap;
++	int ret;
++
++	/*
++	 * The bridge can lose its internal LVDS I2C address when the display
++	 * pipeline is disabled.  Reset and restore the complete control path on
++	 * every modeset, matching the lifecycle fix in upstream commit
++	 * 6d0cc72b3ad5 ("drm/bridge: ite-it6263: Move chip initialization code
++	 * from probe to atomic_enable").
++	 */
++	it6263_reset(it6263);
++
++	ret = regmap_write(regmap, HDMI_REG_SW_RST, HDMI_RST_ALL);
++	if (ret)
++		return ret;
++
++	usleep_range(1000, 2000);
++
++	ret = regmap_write(regmap, HDMI_REG_LVDS_PORT,
++			   LVDS_INPUT_CTRL_I2C_ADDR << 1);
++	if (ret)
++		return ret;
++
++	ret = regmap_write(regmap, HDMI_REG_LVDS_PORT_EN, 0x01);
++	if (ret)
++		return ret;
++
++	ret = regmap_write(regmap, HDMI_REG_BANK_CTRL, BANK_SEL(0));
++	if (ret)
++		return ret;
++
++	it6263_lvds_config(it6263);
++	it6263_hdmi_config(it6263);
++
++	return 0;
++}
++
+ static void it6263_bridge_mode_set(struct drm_bridge *bridge,
+ 				    const struct drm_display_mode *mode,
+ 				    const struct drm_display_mode *adj)
+@@ -777,6 +816,14 @@ static void it6263_bridge_mode_set(struct drm_bridge *bridge,
+ 	struct it6263 *it6263 = bridge_to_it6263(bridge);
+ 	struct regmap *regmap = it6263->hdmi_regmap;
+ 	bool pclk_high = adj->clock > 80000 ? true : false;
++	int ret;
++
++	ret = it6263_reinitialize(it6263);
++	if (ret) {
++		dev_err(&it6263->hdmi_i2c->dev,
++			"failed to reinitialize bridge: %d\n", ret);
++		return;
++	}
+ 
+ 	regmap_write(regmap, HDMI_REG_HDMI_MODE,
+ 				it6263->is_hdmi ? TX_HDMI_MODE : TX_DVI_MODE);
+-- 
+2.43.0
+
