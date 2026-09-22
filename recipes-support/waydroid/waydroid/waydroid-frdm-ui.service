@@ -18,8 +18,13 @@ ExecStartPre=/usr/libexec/waydroid-product-wait session
 # present the UI through the direct Binder helper under the fio account.
 ExecStartPre=+/usr/bin/waydroid container unfreeze
 ExecStart=/usr/libexec/waydroid-frdm-show-ui
+# The i.MX95 GL renderer can retain its pre-Android output until an unrelated
+# wl_shm commit schedules the first repaint. Map a bounded demo surface and
+# immediately remove it; Weston's full-repaint workaround redraws Waydroid and
+# focus returns to the Android full-UI surface.
+ExecStartPost=+/usr/libexec/waydroid-frdm-kick-repaint
 RemainAfterExit=yes
-TimeoutStartSec=180
+TimeoutStartSec=300
 
 [Install]
 WantedBy=graphical.target

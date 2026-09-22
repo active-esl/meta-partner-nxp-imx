@@ -1,0 +1,26 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+
+set -eu
+
+# The Binder services used by waydroid-frdm-show-ui become available before
+# Android presents its first boot-complete frame. Running earlier consumes the
+# only repaint trigger while Weston still has nothing useful to redraw.
+ready=false
+for _attempt in $(seq 1 180); do
+    if test "$(/usr/bin/waydroid shell -- getprop sys.boot_completed 2>/dev/null || true)" = 1; then
+        ready=true
+        break
+    fi
+    sleep 1
+done
+test "${ready}" = true
+
+# A short-lived wl_shm surface is sufficient to schedule the first complete
+# repaint. timeout returns 124 when it ends the demo, which is the expected
+# result; any other failure must fail the UI unit rather than hide a regression.
+status=0
+/usr/bin/setpriv --reuid=weston --regid=weston --init-groups \
+    /usr/bin/env XDG_RUNTIME_DIR=/run WAYLAND_DISPLAY=wayland-0 \
+    /usr/bin/timeout 1 /usr/bin/weston-simple-shm >/dev/null 2>&1 || status=$?
+test "${status}" -eq 0 || test "${status}" -eq 124
