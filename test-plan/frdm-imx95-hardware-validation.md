@@ -317,6 +317,20 @@ the fan diagnostic overlay and bypasses EGL partial-update and damaged-swap
 entry points. Mali GLES acceleration remains enabled. Expect higher display
 bandwidth because every frame redraws the complete output.
 
+Full repaint changes how an already scheduled repaint is drawn; it does not
+itself schedule the first repaint. On FRDM, the initial HWC commit can still
+leave HDMI black until an unrelated `wl_shm` client damages the output. The
+FRDM UI service therefore waits for Android boot completion and maps a bounded
+one-second shared-memory surface. Removing that surface returns focus to the
+Waydroid full-UI toplevel while forcing Weston to draw the current Android
+frame. A successful test must show that the frame remains visible after the
+helper exits.
+
+The appliance full-UI surface requests xdg-shell fullscreen through
+`persist.waydroid.fullscreen=true`. Do not replace desktop shell with kiosk
+shell: the current Waydroid HWC does not survive that shell transition. The
+fullscreen configure must report 1920x1080 and the Weston panel must be absent.
+
 HDMI capture is part of the test fixture. Start OBS before Weston modesets so
 the USB capture adapter asserts HPD, and keep the capture source open throughout
 lifecycle testing. For release evidence, require three serialized Waydroid

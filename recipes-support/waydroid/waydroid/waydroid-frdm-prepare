@@ -55,6 +55,9 @@ replace_property debug.hwui.use_buffer_age false
 replace_property debug.hwui.render_dirty_regions false
 replace_property debug.hwui.enable_partial_updates false
 replace_property debug.hwui.use_partial_updates false
+# The FRDM appliance owns the HDMI output. Ask the Wayland HWC to use the
+# xdg-shell fullscreen state instead of the desktop-shell maximized work area.
+replace_property persist.waydroid.fullscreen true
 remove_property gralloc.gbm.device
 remove_property debug.stagefright.ccodec
 

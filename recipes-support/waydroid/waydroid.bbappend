@@ -50,6 +50,7 @@ SRC_URI = "git://github.com/waydroid/waydroid.git;branch=main;protocol=https \
     file://waydroid-frdm-session.service \
     file://waydroid-frdm-ui.service \
     file://waydroid-frdm-show-ui \
+    file://waydroid-frdm-kick-repaint \
     file://waydroid-frdm-prepare \
     file://waydroid-frdm-device-permissions \
     file://waydroid-frdm-network-ready \
@@ -102,6 +103,7 @@ SYSTEMD_AUTO_ENABLE:${PN}:imx95-frdm-evk = "enable"
 # prerequisites; fail early if Waydroid is pulled into an incomplete image.
 REQUIRED_DISTRO_FEATURES = "waydroid wayland opengl vulkan"
 REQUIRED_DISTRO_FEATURES:append:imx95-frdm-evk = " apparmor"
+RDEPENDS:${PN}:append:imx95-frdm-evk = " coreutils weston-examples"
 REQUIRED_DISTRO_FEATURES:imx8mm-jaguar-screen = "waydroid apparmor wayland opengl etnaviv"
 
 WEBOS_SYSTEMD_SERVICE = "waydroid-init.service waydroid-container.service"
@@ -269,6 +271,8 @@ do_install:append:imx95-frdm-evk() {
         ${D}${libexecdir}/waydroid-frdm-network-ready
     install -Dm0755 ${WORKDIR}/waydroid-frdm-show-ui \
         ${D}${libexecdir}/waydroid-frdm-show-ui
+    install -Dm0755 ${WORKDIR}/waydroid-frdm-kick-repaint \
+        ${D}${libexecdir}/waydroid-frdm-kick-repaint
     install -Dm0644 ${WORKDIR}/waydroid-image-release.conf \
         ${D}${datadir}/waydroid-extra/waydroid-image-release.conf
     install -Dm0644 ${WORKDIR}/waydroid-frdm-container.conf \
