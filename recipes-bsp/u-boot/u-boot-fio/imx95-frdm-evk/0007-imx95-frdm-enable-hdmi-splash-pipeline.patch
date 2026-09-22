@@ -19,8 +19,8 @@ Signed-off-by: Active Edge Solutions <engineering@active-esl.com>
 ---
  arch/arm/dts/imx95-15x15-frdm.dts  | 76 +++++++++++++++++++++++++++++
  configs/imx95_15x15_frdm_defconfig |  2 +
- drivers/video/it6263_bridge.c      | 15 ++++++
- 3 files changed, 93 insertions(+)
+ drivers/video/it6263_bridge.c      | 16 +++++++
+ 3 files changed, 94 insertions(+)
 
 diff --git a/arch/arm/dts/imx95-15x15-frdm.dts b/arch/arm/dts/imx95-15x15-frdm.dts
 index 18039bee9..9167d5b2d 100644
@@ -164,17 +164,18 @@ index 67a48923d..71d28f2f7 100644
  
  	debug("%s\n", __func__);
  
-@@ -190,6 +192,18 @@ static int it6263_probe(struct udevice *dev)
+@@ -190,6 +192,19 @@ static int it6263_probe(struct udevice *dev)
  	if (priv->addr  == 0)
  		return -ENODEV;
  
 +	ret = gpio_request_by_name(dev, "reset-gpios", 0, &priv->reset_gpio,
 +				   GPIOD_IS_OUT);
 +	if (!ret) {
++		/* The IT6263 reset pulse must remain asserted for at least 40 ms. */
 +		dm_gpio_set_value(&priv->reset_gpio, 1);
-+		mdelay(1);
++		mdelay(41);
 +		dm_gpio_set_value(&priv->reset_gpio, 0);
-+		mdelay(10);
++		mdelay(6);
 +	} else if (ret != -ENOENT) {
 +		dev_err(dev, "failed to request reset GPIO: %d\n", ret);
 +		return ret;
