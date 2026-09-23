@@ -21,6 +21,7 @@ apparmor_property_patch="$files/0005-apparmor-allow-waydroid-property-update.pat
 kernel_recipe="$repo/recipes-kernel/linux/linux-lmp-fslc-imx_6.12.bb"
 kernel_config="$repo/recipes-kernel/linux/linux-lmp-fslc-imx/imx95-15x15-lpddr4x-frdm.cfg"
 dmabuf_patch="$repo/recipes-kernel/linux/linux-lmp-fslc-imx/0007-dma-buf-add-NXP-i.MX-helper.patch"
+it6263_patch="$repo/recipes-kernel/linux/linux-lmp-fslc-imx/0008-drm-bridge-it6263-reinitialize-on-enable.patch"
 mali_recipe="$repo/recipes-graphics/mali/mali-imx_%.bbappend"
 
 sh -n "$prepare"
@@ -91,6 +92,13 @@ grep -Fq 'chmod 0666 /dev/dmabuf_imx' "$permissions"
 grep -Fq 'systemctl is-active --quiet waydroid-container.service' \
     "$repo/test-plan/interface-test-imx95-frdm-evk.sh"
 grep -Fq 'file://0007-dma-buf-add-NXP-i.MX-helper.patch' "$kernel_recipe"
+grep -Fq 'file://0008-drm-bridge-it6263-reinitialize-on-enable.patch' "$kernel_recipe"
+grep -Fq '@@ -697,8 +736,16 @@ static void it6263_bridge_enable' "$it6263_patch"
+grep -Eq '^\+[[:space:]]+ret = it6263_reinitialize\(it6263\);' "$it6263_patch"
+if grep -Eq '^@@ .*it6263_bridge_mode_set' "$it6263_patch"; then
+    echo 'IT6263 reinitialization is still attached to mode_set' >&2
+    exit 1
+fi
 grep -Fqx 'CONFIG_DMABUF_IMX=y' "$kernel_config"
 grep -Fq 'device_create(dmabuf_class, NULL, dmabuf_dev_imx, NULL, "dmabuf_imx")' "$dmabuf_patch"
 grep -Fq '/data/resource-cache/** r,' "$apparmor_patch"
