@@ -16,6 +16,21 @@ experiments, not evidence of current support.
 - Installed tools: `llama-completion`, `llama-bench`, `neutron-pack` and, in the
   separate `llama-neutron-tests` package, `test-neutron-mm`.
 - Models, packed caches and upstream server functionality are not included.
+- With the experiment enabled, the existing TensorFlow Lite Neutron delegate
+  uses NXP source `4a38248c74b83b0b7f4f2a9091e095e1e92247d0` on
+  `lf-6.18.20_2.0.0`, linking against the product's existing TensorFlow Lite
+  2.16.1 provider (`5bc9d26649cca274750ad3625bd93422617eed4b`). The delegate
+  recipe's 2.16.2 name is not the linked TensorFlow version. Its source selection
+  requires both the exact FRDM machine and the experiment-enable flag. Normal
+  FRDM configurations retain the original delegate source and RUNPATH patch.
+  The matching delegate expects vendor-precompiled Neutron operations; it
+  does not restore the removed runtime's online converter. Existing compiled
+  models still require hardware qualification before a support claim.
+- The delegate fetches headers from the product provider's exact upstream
+  revision and links to its shipped `libtensorflowlite.so`. Configuration fails
+  if that library is absent, rather than building a second TensorFlow runtime;
+  linking rejects undefined symbols. The component KAS pins the product's
+  existing `meta-tensorflow` layer revision for durable provider coverage.
 - Optional `neutron_3.1.1.bb` backports only the vendor runtime/firmware,
   pinned to `d0ff138390aeba2b6c5169d8f0ca13f6a6b8219a`.
   It is compatible only with `imx95-frdm-evk` and has `DEFAULT_PREFERENCE=-1`.
@@ -46,7 +61,9 @@ kas-container build kas/lmp-v96-imx95-frdm-evk-neutron-experiment.yml
 ```
 
 This component configuration inherits the existing pinned FRDM DEV stack and
-targets only the experiment recipe/packagegroup, not a factory image. Its
+targets the experiment recipe/packagegroup and the existing TensorFlow Lite
+Neutron delegate, not a factory image. Both consumers must compile and pass
+package QA against the selected runtime before a Foundries image retry. Its
 inherited DEV signing settings are not production signing proof. On an already
 configured matching build environment, use:
 

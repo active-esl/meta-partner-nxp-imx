@@ -1,0 +1,26 @@
+From: Dynamic Devices <info@dynamicdevices.co.uk>
+Subject: [PATCH] Build the companion graph-partition helper with simple_delegate
+
+The product's Bazel-built TensorFlow Lite library does not export the delegate
+GraphPartitionHelper implementation. Build its companion utility from the same
+pinned TensorFlow source as simple_delegate.cc, rather than introducing another
+TensorFlow runtime or accepting unresolved symbols in the delegate.
+
+Strict linking is a target option, preserving all Yocto linker/hardening flags.
+
+Upstream-Status: Inappropriate [product TensorFlow provider integration]
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -63,6 +63,7 @@ endif()
+ list(APPEND NEUTRON_DELEGATE_SRCS
+   ${TFLITE_SOURCE_DIR}/delegates/utils/simple_delegate.cc
++  ${TFLITE_SOURCE_DIR}/delegates/utils.cc
+   ${DELEGATE_SRC_DIR}/neutron_delegate.cc
+   ${DELEGATE_SRC_DIR}/neutron_delegate_adaptor.cc
+   ${DELEGATE_SRC_DIR}/neutron_delegate_dmabuf.cc
+ )
+@@ -113,2 +114,3 @@
+ target_compile_options(${NEUTRON_DELEGATE_TARGET} PUBLIC ${NEUTRON_DELEGATE_OPTIONS})
++target_link_options(${NEUTRON_DELEGATE_TARGET} PRIVATE "-Wl,--no-undefined")
+ target_link_libraries(${NEUTRON_DELEGATE_TARGET} PUBLIC ${NEUTRON_DELEGATE_DEPENDENCIES})

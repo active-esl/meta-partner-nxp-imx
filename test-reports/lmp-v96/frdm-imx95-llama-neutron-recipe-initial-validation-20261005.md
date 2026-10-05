@@ -250,3 +250,108 @@ factory baseline.
 All four existing partner source-contract scripts passed after integration;
 whitespace checks passed. This preparation is not a Foundries build or OTA pass.
 Publication and hardware state remain to be verified.
+
+## Foundries build 3002 failure and delegate qualification
+
+The manifest commit `bdbda470fc0dc546637f0b6381ff565c0efdbe14` triggered
+Foundries build 3002 on `main-imx95-frdm-devel`. The FRDM platform run failed
+in `tensorflow-lite-neutron-delegate-2.16.2:do_compile`, not the new backend.
+The old delegate expected `neutron/NeutronConverter.h` and passed signed size
+pointers to `neutronCustomPrepare`; the selected runtime exposes unsigned size
+pointers and does not supply that converter header. The full console scan
+found one failed task, with those three concrete compiler diagnostics plus
+task/log/failed-action wrappers. The run attempted 12,749 tasks, 11,949 reused.
+`llama-neutron` reached sysroot staging and packaging successfully.
+
+Evidence source: build 3002's complete FRDM console, 2,754,233 bytes, SHA-256
+`475fa62ae1a6fb5b00908588cac6b0f07904403e061bcbdebcf71e6983b748fc`.
+The reduction scanned from beginning to end, admitting anchored BitBake,
+Ninja and compiler errors with bounded source context, not raw logs.
+No target 3002 was published. The online device's factory record still reported
+target 2992 in the post-failure observation; no OTA from 3002 is claimed.
+
+The earlier component preflight missed this existing runtime consumer. The
+experiment KAS target list now includes the TensorFlow Lite Neutron delegate.
+The FRDM/enable-gated source override selects matching vendor delegate commit
+`4a38248c74b83b0b7f4f2a9091e095e1e92247d0`, preserving the existing TensorFlow
+Lite 2.16.2 pin. Its CMake source no longer has the old source-directory RUNPATH,
+so only the enabled experiment omits the obsolete patch. It builds the delegate
+target against the sysroot TensorFlow library, not an automatic TensorFlow
+version upgrade. The licence checksum remains unchanged and is force-checked.
+
+This section records the candidate and known failure, not a successful repair,
+Foundries retry or hardware qualification.
+
+## Product TensorFlow provider mismatch and alignment candidate
+
+The matching delegate compiled successfully in the product-stack preflight,
+but `do_package_qa` failed: its ELF required `libtensorflow-lite.so.2.16.2`
+with and without `VERS_1.0`, and no runtime package provided that dependency.
+The run attempted 1,656 tasks, 1,214 reused, one failed. No QA check was disabled.
+
+Actual product pkgdata and recipe inspection select `tensorflow-lite 2.16.1`
+from `meta-tensorflow` at layer revision
+`eeee54cfa3c51c1fd99604a0d5f173096bdcf1da`, upstream TensorFlow revision
+`5bc9d26649cca274750ad3625bd93422617eed4b` on `r2.16`. That package ships
+`libtensorflowlite.so` with the same SONAME. The earlier claim that the
+product retained TensorFlow 2.16.2 is superseded: the delegate recipe label
+and its fetched NXP source were not proof of the selected product provider.
+Vendor CMake had silently built a separate library because its requested
+sysroot library did not exist.
+
+The new FRDM/enable-gated candidate fetches the exact existing provider's
+TensorFlow source for headers and explicitly imports its shipped library.
+A preconfigure existence gate prevents that silent fallback, and the delegate
+link uses `--no-undefined` to expose ABI/symbol failures. No product provider,
+TensorFlow version, runtime or kernel pin is changed. The component KAS includes
+the existing product TensorFlow layer pin so future tests exercise that provider.
+The signed alignment grant was independently verified before staging and launch.
+
+Evidence paths: builder `work/delegate-fix-preflight-r1.log` (failed QA) and
+`work/tensorflow-alignment-r1.log` (new candidate). This records an in-progress
+qualification, not a passing package gate or Foundries/OTA success.
+
+The first aligned build passed configuration and forced licence checks but
+strict linking rejected the missing `GraphPartitionHelper` vtable and two
+partition methods. Its complete 33,986-byte compile log SHA-256 is
+`fac2734a34ec0faf4b92be2c83c6e66ef13728900f1501358903372c0838c9f3`.
+The reducer selected six failed-action/link diagnostics in source order.
+Added the same pinned TensorFlow source's companion `delegates/utils.cc`
+beside the already-built `simple_delegate.cc`; this is a delegate utility,
+not another TensorFlow runtime. The initial patch encountered patch-fuzz QA;
+its context was corrected without suppressing that gate. Third candidate
+run: builder `work/tensorflow-alignment-r3.log`, not yet a success claim.
+
+That third candidate compiled and linked with strict symbol resolution, but
+package QA detected absent GNU_HASH: the strict-link CMake variable had replaced
+Yocto's standard linker flags. The fourth candidate moves `--no-undefined` to
+`target_link_options`, preserving all standard flags without a QA waiver.
+Builder `work/tensorflow-alignment-r4.log` and the chained
+`work/tensorflow-alignment-verification.log` own its qualification evidence.
+
+## Alignment qualification passed
+
+The fourth candidate passed all 1,657 component tasks (1,644 reused).
+Forced licence tasks passed for Neutron, the delegate and llama-neutron.
+The chained verification forced package QA for both consumers: all 1,630
+tasks passed, including both explicitly rerun `do_package_qa` tasks.
+
+The delegate and all four backend executables are AArch64 ELF files.
+The delegate requires the shipped `libtensorflowlite.so` and `libNeutronDriver.so`,
+with no RPATH/RUNPATH. Pkgdata resolves `tensorflow-lite (>= 2.16.1)` and
+`neutron (>= 3.1.1)`. Strict linking resolved every required symbol. GNU_HASH,
+GNU_RELRO and BIND_NOW are retained. Delegate ELF SHA-256:
+`24a981179d342a22d7df98bd8ac58bcadcd5f3fa0e0bd682d580d0bee761d0b1`.
+
+Disabled metadata selected original Neutron 1.0.0 at
+`1c32f65741c827aabf2ab3edb03227fd25c7cfca` and original delegate source
+`ee5e77ae2582b24e14b0d74acdf8a1c111842005` on `lf-6.6.52_2.2.0`, with
+TensorFlow source `032564c4cbbc08a942553796f6365c412fc9863c` and the original
+RUNPATH patch only. The helper patch and product-library override are absent.
+All four existing source-contract scripts and whitespace checks passed.
+
+The append, helper patch and KAS SHA-256 values matched between the local
+candidate and builder. The two complete qualification/verification logs stay
+in the isolated builder as evidence. No QA, compiler or signing gate was waived.
+This is component proof only: Foundries retry, OTA, NPU correctness and compiled
+model/firmware compatibility remain unverified.

@@ -7,7 +7,15 @@ header:
 
 target:
   - llama-neutron
+  - tensorflow-lite-neutron-delegate
   - packagegroup-partner-nxp-imx95-neutron-experiment
+
+repos:
+  # Match the existing product provider, not the NXP CMake-only alternative.
+  meta-tensorflow:
+    url: https://git.yoctoproject.org/meta-tensorflow
+    commit: eeee54cfa3c51c1fd99604a0d5f173096bdcf1da
+    path: build/layers/meta-tensorflow
 
 local_conf_header:
   neutron-frdm-experiment-runtime: |
