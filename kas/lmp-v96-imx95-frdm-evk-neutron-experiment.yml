@@ -1,0 +1,20 @@
+# Opt-in component build: no factory image, model download or board deployment.
+# Uses the existing pinned FRDM DEV stack without changing its signing policy.
+header:
+  version: 14
+  includes:
+    - kas/lmp-v96-imx95-frdm-evk-6.12-partner.yml
+
+target:
+  - llama-neutron
+  - packagegroup-partner-nxp-imx95-neutron-experiment
+
+local_conf_header:
+  neutron-frdm-experiment-runtime: |
+    FRDM_NEUTRON_EXPERIMENT:imx95-frdm-evk = "1"
+    PREFERRED_VERSION_neutron:imx95-frdm-evk = "3.1.1"
+  neutron-component-provider-scope: |
+    # Waydroid providers are supplied by the product's middleware layer, not
+    # this pinned partner-only stack. Exclude only their exact appends for this
+    # NPU component build; retain strict dangling-append checks everywhere else.
+    BBMASK += "/recipes-support/libgbinder/libgbinder[.]bbappend$ /recipes-support/libglibutil/libglibutil[.]bbappend$ /recipes-support/waydroid/python3-gbinder_git[.]bbappend$ /recipes-support/waydroid/waydroid[.]bbappend$"
