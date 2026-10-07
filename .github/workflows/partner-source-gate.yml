@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - "review/**"
+      - feature/frdm-imx95-llama-neutron
 
 permissions:
   contents: read
@@ -31,6 +32,9 @@ jobs:
 
       - name: Verify FRDM-IMX95 source and boot-layout contracts
         run: ./test-plan/check-imx95-boot-layout-source.sh
+
+      - name: Verify FRDM Neutron bootstrap recipe and mocked mapping ownership
+        run: ./test-plan/check-frdm-neutron-bootstrap-source.sh
 
       - name: Verify Waydroid LXC proc policy source
         run: ./test-plan/check-waydroid-lxc-proc-source.sh

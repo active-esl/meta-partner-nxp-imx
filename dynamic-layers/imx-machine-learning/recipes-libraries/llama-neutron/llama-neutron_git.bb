@@ -9,11 +9,17 @@ LIC_FILES_CHKSUM = " \
 
 SRC_URI = "git://github.com/open-ep/llama-neutron.git;protocol=https;branch=neutron-npu"
 SRC_URI += "file://neutron-api-check.cpp"
+SRC_URI += " \
+    file://0001-neutron-release-tracked-bootstrap-mapping.patch \
+    file://mapping-tail-guard.h \
+"
 SRCREV = "a74a3f86a8708517a139b548f91793d615dc4b0c"
 PV = "0.0+git${SRCPV}"
 S = "${WORKDIR}/git"
 
-inherit cmake
+inherit cmake features_check
+
+REQUIRED_DISTRO_FEATURES += "llama-neutron"
 
 COMPATIBLE_MACHINE = "^imx95-frdm-evk$"
 DEPENDS = "neutron"
@@ -40,6 +46,9 @@ EXTRA_OECMAKE = " \
 # API this fork requires. Fail clearly before compiling the complete backend;
 # do not silently upgrade vendor firmware or substitute a CPU-only build.
 do_configure:prepend() {
+    # Keep the reviewed ownership parser beside the patched backend. This
+    # runtime-specific workaround affects only this FRDM experiment recipe.
+    install -m 0644 ${WORKDIR}/mapping-tail-guard.h ${S}/ggml/src/ggml-cpu/neutron/
     install -d ${B}
     ${CXX} ${CPPFLAGS} ${CXXFLAGS} ${LDFLAGS} \
         -I${S}/ggml/src/ggml-cpu/neutron ${WORKDIR}/neutron-api-check.cpp \

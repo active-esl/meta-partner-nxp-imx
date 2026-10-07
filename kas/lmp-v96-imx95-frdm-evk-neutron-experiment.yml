@@ -19,8 +19,7 @@ repos:
 
 local_conf_header:
   neutron-frdm-experiment-runtime: |
-    FRDM_NEUTRON_EXPERIMENT:imx95-frdm-evk = "1"
-    PREFERRED_VERSION_neutron:imx95-frdm-evk = "3.1.1"
+    DISTRO_FEATURES:append:imx95-frdm-evk = " llama-neutron"
   neutron-component-provider-scope: |
     # Waydroid providers are supplied by the product's middleware layer, not
     # this pinned partner-only stack. Exclude only their exact appends for this

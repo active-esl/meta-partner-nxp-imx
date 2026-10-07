@@ -11,6 +11,9 @@ experiments, not evidence of current support.
 - Pin: `a74a3f86a8708517a139b548f91793d615dc4b0c`.
 - Recipe: `llama-neutron`; machine: `imx95-frdm-evk` only.
 - Optional packagegroup: `packagegroup-partner-nxp-imx95-neutron-experiment`.
+- Distro feature: `llama-neutron`, default off. This selects extra userspace
+  software, not core BSP NPU hardware/driver support. The recipes and image
+  selection retain their FRDM-only machine restriction.
 - Requires the existing `imx-machine-learning` collection (NXP `meta-imx-ml`)
   and its `neutron` provider. Both recipes are gated through `BBFILES_DYNAMIC`.
 - Installed tools: `llama-completion`, `llama-bench`, `neutron-pack` and, in the
@@ -21,7 +24,7 @@ experiments, not evidence of current support.
   `lf-6.18.20_2.0.0`, linking against the product's existing TensorFlow Lite
   2.16.1 provider (`5bc9d26649cca274750ad3625bd93422617eed4b`). The delegate
   recipe's 2.16.2 name is not the linked TensorFlow version. Its source selection
-  requires both the exact FRDM machine and the experiment-enable flag. Normal
+  requires both the exact FRDM machine and the `llama-neutron` distro feature. Normal
   FRDM configurations retain the original delegate source and RUNPATH patch.
   The matching delegate expects vendor-precompiled Neutron operations; it
   does not restore the removed runtime's online converter. Existing compiled
@@ -34,10 +37,10 @@ experiments, not evidence of current support.
 - Optional `neutron_3.1.1.bb` backports only the vendor runtime/firmware,
   pinned to `d0ff138390aeba2b6c5169d8f0ca13f6a6b8219a`.
   It is compatible only with `imx95-frdm-evk` and has `DEFAULT_PREFERENCE=-1`.
-  It is skipped unless `FRDM_NEUTRON_EXPERIMENT = "1"`; negative default
+  It is skipped unless `DISTRO_FEATURES` contains `llama-neutron`; negative default
   preference alone cannot override the partner layer's higher priority.
-  Only the experiment KAS configuration enables it, with explicit FRDM
-  enable and `PREFERRED_VERSION` overrides. Other boards and normal FRDM images keep their
+  Only the experiment KAS configuration enables it, with an explicit FRDM
+  distro-feature override. Other boards and normal FRDM images keep their
   existing runtime selection. No vendor layer or kernel is repinned.
   The initial 6.12 runtime candidate passed API declarations but lacked private
   packing symbols at link time. The 3.1 family remains a build/hardware
@@ -48,9 +51,12 @@ experiments, not evidence of current support.
   kernel UAPI's Linux-syscall exception, and the separately supplied vendor
   headers/library. The `neutron` dependency retains its own vendor licence.
 
-For an explicit experiment image, select the packagegroup in image/product
-configuration using an FRDM-only override. Do not add it to recovery/mfgtool or
-to the existing runtime packagegroup by default.
+For an explicit experiment image, enable the software feature in distro/product
+configuration with `DISTRO_FEATURES:append:imx95-frdm-evk = " llama-neutron"`.
+The FRDM factory-image append selects the optional packagegroup. The feature is
+also required when building the extra recipes directly, so direct recipe targets
+cannot bypass opt-in. Do not add it to recovery/mfgtool or to the existing runtime
+packagegroup by default. `FRDM_NEUTRON_EXPERIMENT` is no longer an enable switch.
 
 ## Build proof before board execution
 
@@ -73,9 +79,9 @@ bitbake -e llama-neutron
 bitbake llama-neutron
 ```
 
-That environment must explicitly set `FRDM_NEUTRON_EXPERIMENT:imx95-frdm-evk = "1"`
-and `PREFERRED_VERSION_neutron:imx95-frdm-evk = "3.1.1"`, as the experiment KAS
-configuration does. Without the enable gate, the existing vendor provider is
+That environment must explicitly set `DISTRO_FEATURES:append:imx95-frdm-evk = " llama-neutron"`
+as the experiment KAS configuration does. No separate enable variable is
+required. Without the distro-feature gate, the existing vendor provider is
 retained and cannot build this backend's required packing APIs.
 
 Verify the resolved source revision, target architecture, `neutron` provider,
@@ -95,6 +101,29 @@ Run the matrix test in vendor-library mode and then direct mode, each as a fresh
 process. Include relevant Qwen matrix widths. The supplied test uses a relative
 RMS error threshold of 3%; retain actual errors and inspect model-level quality
 too. Firmware-specific tiling workarounds need validation on our firmware.
+
+Before matrix execution, explicitly set `NEUTRON_CACHE_DIR=` (empty) to prevent
+the packer's default HOME/.cache/ggml-neutron persistence outside approved
+scratch. Do not change HOME to control this. The first hardware run exposed this
+side effect; record it rather than silently cleaning an existing root cache.
+Freeze approved environment/commands in per-run receipts.
+
+The deployed image's CMA total is 960 MiB, not all of its nominal 8 GB RAM.
+Vendor defaults allocate four 512 MiB slots (2 GiB), so small vendor matrix tests
+need explicit `NEUTRON_SLOTS=1`. The qualified small direct configuration uses
+`NEUTRON_DIRECT=1 NEUTRON_BUF_MB=256` with default 128 MiB scratch. Retain fresh
+processes, resource/ownership/hash checks and bounded timeouts. These controls
+are per-process settings, not approval for changing kernel/CMA boot policy.
+
+For the pinned runtime, `releaseBuffer` success alone does not establish that
+the firmware-bootstrap DMA mapping is fully released. Observe the exact owned
+mapping lifetime and CMA before claiming headroom. A scratch correction must
+track the original VMA and validate the surviving tail's inode/device/bounds
+before release, refuse ambiguity, preserve firmware initialization and the
+independent direct-handle lifetime, and pass synthetic safety fixtures first.
+Recheck unchanged RAM/CMA gates after correction and before inference. Do not
+infer large-model or multi-region support from a single small correctness case;
+keep run evidence under test-reports rather than this procedure.
 
 ## Model benchmark
 

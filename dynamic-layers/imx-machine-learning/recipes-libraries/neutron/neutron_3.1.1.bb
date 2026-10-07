@@ -10,9 +10,7 @@ SRCREV = "d0ff138390aeba2b6c5169d8f0ca13f6a6b8219a"
 COMPATIBLE_MACHINE = "^imx95-frdm-evk$"
 DEFAULT_PREFERENCE = "-1"
 
-# Layer priority outranks DEFAULT_PREFERENCE. Exclude this provider entirely
-# unless the isolated experiment explicitly enables it.
-python __anonymous() {
-    if d.getVar("FRDM_NEUTRON_EXPERIMENT") != "1":
-        raise bb.parse.SkipRecipe("FRDM Neutron runtime requires FRDM_NEUTRON_EXPERIMENT = 1")
-}
+# Layer priority outranks DEFAULT_PREFERENCE. Exclude this optional software
+# provider unless the distro selects it; core BSP NPU support is unchanged.
+inherit features_check
+REQUIRED_DISTRO_FEATURES += "llama-neutron"

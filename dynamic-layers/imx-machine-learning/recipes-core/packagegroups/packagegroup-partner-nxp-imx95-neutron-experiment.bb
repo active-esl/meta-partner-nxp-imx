@@ -5,7 +5,9 @@ LICENSE = "MIT"
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 COMPATIBLE_MACHINE = "^imx95-frdm-evk$"
 
-inherit packagegroup
+inherit packagegroup features_check
+
+REQUIRED_DISTRO_FEATURES += "llama-neutron"
 
 RDEPENDS:${PN} = " \
     llama-neutron \

@@ -1,0 +1,75 @@
+Subject: [PATCH] neutron: release the tracked firmware bootstrap DMA mapping
+
+Keep vendor firmware initialization and open the independent direct handle
+before releasing its bootstrap buffer. The pinned Neutron 3.1.1 runtime can
+leave a 512 MiB mapping tail alive after releaseBuffer succeeds. Capture and
+validate the actual process-owned mapping, then release only the exact
+identity-checked surviving tail. Refuse ambiguous or changed mappings.
+
+Validated in reviewed scratch candidates on FRDM-IMX95 with the existing
+firmware, including independent per-region numerical/job-attribution tests.
+This is an experimental runtime-specific workaround, not general model proof.
+No mathematical code, packing, job descriptors or vendor-mode policy changes.
+The companion mapping-tail-guard.h is supplied by the FRDM-only recipe.
+
+Upstream-Status: Inappropriate [pinned vendor runtime development workaround]
+
+--- a/ggml/src/ggml-cpu/neutron/ggml-cpu-neutron.cpp
++++ b/ggml/src/ggml-cpu/neutron/ggml-cpu-neutron.cpp
+@@ -32,6 +32,7 @@
+ #include <sys/stat.h>
+ #include <unistd.h>
+ #include <vector>
++#include "mapping-tail-guard.h"
+
+ namespace ggml::cpu::neutron {
+
+@@ -58,6 +59,24 @@
+     size_t size = 0, used = 0, scratch_off = 0;
+     int lib_slot = 0;
+ };
++// Scratch experiment only: measurement, not an intermediate guard waiver.
++static void bootstrap_snapshot(const char * stage) {
++    FILE * f = fopen("/proc/meminfo", "r");
++    if (!f) { fprintf(stderr, "GUARD_FAIL bootstrap meminfo unavailable\n"); exit(2); }
++    unsigned long long available = 0, cma = 0, value;
++    char line[256], key[128];
++    while (fgets(line, sizeof(line), f)) {
++        if (sscanf(line, "%127s %llu", key, &value) != 2) continue;
++        if (!strcmp(key, "MemAvailable:")) available = value;
++        if (!strcmp(key, "CmaFree:")) cma = value;
++    }
++    bool bad = ferror(f); fclose(f);
++    if (bad || !available || !cma) {
++        fprintf(stderr, "GUARD_FAIL bootstrap meminfo incomplete\n"); exit(2);
++    }
++    fprintf(stderr, "BOOTSTRAP stage=%s MemAvailable_KiB=%llu CmaFree_KiB=%llu\n", stage, available, cma);
++}
++
+ struct dev {
+     static constexpr size_t LIB_SLOT = 512ull << 20;
+     bool direct = false;
+@@ -86,10 +105,23 @@
+             fprintf(stderr, "ggml-neutron: lib mode, CMA %d x 512MB at %p, scratch %zu MB/slot\n", n, p, reserved >> 20);
+         } else {
+             // libNeutronDriver still boots the firmware (FIRMWARE_LOAD needs a staging buffer of its own)
++            bootstrap_map initial_map;
++            if (bootstrap_read_map(initial_map)) { fprintf(stderr, "GUARD_FAIL preexisting DMA mapping\n"); exit(2); }
++            bootstrap_snapshot("before");
+             void * p = nullptr;
+             if (allocateBuffer(1ull << 20, &p, true) != ENONE || !p) { fprintf(stderr, "ggml-neutron: firmware init via allocateBuffer failed\n"); return false; }
++            const bootstrap_map tracked = bootstrap_capture(p);
++            bootstrap_snapshot("allocated");
+             dfd = open("/dev/neutron0", O_RDWR | O_CLOEXEC);
+             if (dfd < 0) { perror("ggml-neutron: open /dev/neutron0"); return false; }
++            // Release only after the independent direct device handle is open.
++            if (releaseBuffer(p) != ENONE) {
++                fprintf(stderr, "GUARD_FAIL bootstrap releaseBuffer\n");
++                close(dfd); dfd = -1; exit(2);
++            }
++            bootstrap_finish_release(tracked, p);
++            p = nullptr;
++            bootstrap_snapshot("released");
+             region_bytes = (size_t)std::min(env_int("NEUTRON_BUF_MB", 2048), 2048) << 20;   // firmware header offsets are signed 32-bit: keep every region under 2 GiB
+             fprintf(stderr, "ggml-neutron: direct mode, regions of %zu MB, scratch %zu MB/region\n", region_bytes >> 20, reserved >> 20);
+             // Grab the regions now, while the CMA pool is still clean: once llama.cpp mmaps and prefetches the
